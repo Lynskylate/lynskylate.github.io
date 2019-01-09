@@ -2,22 +2,22 @@
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
     <title>Envoy on Lynskylate&#39;s Blog</title>
-    <link>/tags/envoy/</link>
+    <link>https://lynskylate.github.io/tags/envoy/</link>
     <description>Recent content in Envoy on Lynskylate&#39;s Blog</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>zh-CN</language>
     <copyright>Copyright © 2019, lynskylate; all rights reserved.</copyright>
     <lastBuildDate>Wed, 09 Jan 2019 23:18:43 +0800</lastBuildDate>
     
-	<atom:link href="/tags/envoy/index.xml" rel="self" type="application/rss+xml" />
+	<atom:link href="https://lynskylate.github.io/tags/envoy/index.xml" rel="self" type="application/rss+xml" />
     
     
     <item>
       <title>Envoy的线程模型[翻译]</title>
-      <link>/post/envoy_thread/</link>
+      <link>https://lynskylate.github.io/post/envoy_thread/</link>
       <pubDate>Wed, 09 Jan 2019 23:18:43 +0800</pubDate>
       
-      <guid>/post/envoy_thread/</guid>
+      <guid>https://lynskylate.github.io/post/envoy_thread/</guid>
       <description>Envoy threading Model 关于envoy 代码的底层文档相当稀少。为了解决这个问题我计划编写一系列文档来描述各个子系统的工作。由于是第一篇， 请让我知道你希望其他主题覆盖哪些内容。
 一个我所了解到最共同的技术问题是关于envoy使用的线程模型的底层描述，这篇文章将会描述envoy如何使用线程来处理连接的(how envoy maps connections to threads)， 同事也会描述Thread Local Storage(TLS)系统是如何使内部代码平行且高效的。
 Threading overview Figure 1: Threading overview
