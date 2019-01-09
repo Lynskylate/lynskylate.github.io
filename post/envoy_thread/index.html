@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+	<head>
+    <meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<base href="">
+<meta name="author" content="lynskylate">
+
+<meta name="generator" content="Hugo 0.53" />
+<title>Envoy的线程模型[翻译]</title>
+<link rel="shortcut icon" href="/images/favicon.ico" type="">
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/highlight.css">
+
+
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/latest/css/font-awesome.min.css">
+
+
+<link href="/index.xml" rel="alternate" type="application/rss+xml" title="Lynskylate&#39;s Blog" />
+
+
+
+
+<meta property="og:title" content="Envoy的线程模型[翻译]">
+<meta property="og:type" content="website">
+<meta property="og:url" content="">
+
+
+  <meta property="og:image" content="https://cdn-images-1.medium.com/max/800/1*mNPG4j0QsUk_4J5milHAKQ.png">
+
+
+
+  <meta name="og:description" content="本文是matt对于envoy底层线程机制介绍的翻译">
+
+
+<link rel="canonical" href="/post/envoy_thread/">
+
+    </head>
+<body>
+	  <header class="header">
+			<img src="/images/xiaomai.jpg" alt="">
+
+		</header>
+    <nav class="main-nav">
+        <ul>
+    <li class="active"><a href=''>Articles</a></li>
+    <li><a href='/about'>About</a></li>
+    
+</ul>
+
+    </nav>
+    
+    
+    
+    <div id="site-wrapper">
+        <main>
+            
+  <article class="single">
+    <h1>Envoy的线程模型[翻译]</h1>
+    <section class="extras">
+        <span class="tags">
+          <small class="time">January 9, 2019</small>
+          
+             , posted under 
+             
+                <a href="/tags/envoy">envoy</a>
+             
+                <a href="/tags/service-mesh">Service Mesh</a>
+             
+          
+        </span>
+    </section>
+    <section class="description">
+      本文是matt对于envoy底层线程机制介绍的翻译
+    </section>
+    
+    <section class="featuredImage">
+        <img src="https://cdn-images-1.medium.com/max/800/1*mNPG4j0QsUk_4J5milHAKQ.png" alt="Envoy的线程模型[翻译]">
+    </section>
+    
+    <section id="content" class="body">
+        
+
+<h1 id="envoy-threading-model">Envoy threading Model</h1>
+
+<p>关于envoy 代码的底层文档相当稀少。为了解决这个问题我计划编写一系列文档来描述各个子系统的工作。由于是第一篇， 请让我知道你希望其他主题覆盖哪些内容。</p>
+
+<p>一个我所了解到最共同的技术问题是关于envoy使用的线程模型的底层描述，这篇文章将会描述envoy如何使用线程来处理连接的(how envoy maps connections to threads)， 同事也会描述Thread Local Storage(TLS)系统是如何使内部代码平行且高效的。</p>
+
+<h2 id="threading-overview">Threading overview</h2>
+
+<p><img src="https://cdn-images-1.medium.com/max/800/1*mNPG4j0QsUk_4J5milHAKQ.png" alt="img" /></p>
+
+<p>Figure 1: Threading overview</p>
+
+<p>如同图一所示，envoy使用了三中不同类型的线程。</p>
+
+<ul>
+<li><p><strong>Main</strong>: 这个线程管理了服务器本身的启动和终止, 所有<a href="https://github.com/envoyproxy/data-plane-api/blob/master/XDS_PROTOCOL.md">xDS API</a>的处理(包括DNS, 健康检查(health checking) 和通常的集群管理), running, 监控刷新(stat flushing), 管理界面 还有 通用的进程管理(signals, <a href="https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/hot_restart.html">hot restart</a>。在这个线程中发生的所有事情都是异步和非阻塞的(non blocking)。通常，主线程用来协调所有不需要大量cpu完成的关键功能。这允许大部分代码编写的如同单线程一样。</p></li>
+
+<li><p><strong>Worker</strong> 在envoy系统中，默认为每个硬件(every harware)生成一个worker线程（可以通过&ndash;concurrency参数控制),每个工作线程运行一个无阻塞的事件循环(event loop)，for listening on every listener (there is currently no listener sharding), accept 新的连接，为每个连接实例化过滤栈，以及处理这个连接生命周期的所有io。同时，也允许所有连接代码编写的如同单线程一样。</p></li>
+
+<li><p><strong>File flusher</strong> Envoy 写入的每个文件现在都有一个单独的block的刷新线程。这是因为使用O_NONBLOCK在写入文件系统有时也会阻塞。当Worker线程需要写入文件时，这个数据实际上被移动至in-memory buffer中，最终会被File Flusher线程刷新至文件中。envoy的代码会在一个worker试图写入memory buffer时锁住所有worker。还有一些其他的会在下面讨论。</p></li>
+</ul>
+
+<h2 id="连接处理">连接处理</h2>
+
+<p>如上所述， 所有worker线程都会监听端口而没有任何分片，因此，内核智能的分配accept的套接字给worker进程。现代内核一般都很擅长这一点，在开始使用其他监听同一套接字的其他线程之前，内核使用io 优先级提升等特性来分配线程的工作，同样的还有不适用spin-lock来如理所有请求。</p>
+
+<p>一旦woker accept了一个连接，那么这个连接永远不会离开这个worker(一个连接只由同一worker进行处理), 所有关于连接的处理都将会在worker线程内进一步处理，包括任何转发行为。这有一些重要的含义：</p>
+
+<ul>
+<li><p>Envoy连接池中都是worker线程，因此通过http/2 连接池每次只与上游主机建立一个连接，如果有4个worker，那在稳定状态将只有四个http/2连接与上游主机进行连接。</p></li>
+
+<li><p>Envoy以这种方式工作的原因在于这样几乎所有的代码都可以如同单线程一样以没有锁的方式进行编写。这个设计使得大部分代码易于编写和扩展。</p></li>
+
+<li><p>从内存和连接池效率的角度来看，调整 - concurrency选项实际上非常重要。拥有比所需要的worker更多的worker将会浪费大量的内存，造成大量空置的连接，并导致较低的连接池命中率。在lyft，envoy以较低的concurerency运行，性能大致与他们旁边的服务相匹配。</p></li>
+</ul>
+
+<h2 id="non-blocking意味着什么">non-blocking意味着什么</h2>
+
+<p>到目前为止，在讨论主线程和worker线程时我们已经多次使用术语&rsquo;non-blocking&rsquo;.几乎所有代码都是假设没有阻塞的情况下进行编写。但是，这并非完全正确(哪里有完全正确的东西)，Envoy确实使用了一些process wide locks.</p>
+
+<ul>
+<li>正如上述，如果在写入访问日志， 所有worker都会获得同样的锁在将访问日志填充至内存缓存<sup class="footnote-ref" id="fnref:1"><a href="#fn:1">1</a></sup>前。锁应当保持较短的时间，但是这个锁有可能在高并发和高吞吐量时进行竞争。</li>
+<li>Envoy使用了一个非常复杂的系统来处理线程本地的统计数据，这将是另一个帖子的主题，我简要的介绍一下，作为线程本地统计处理的一部分，它有时会获得一个对于中央统计商店<sup class="footnote-ref" id="fnref:2"><a href="#fn:2">2</a></sup>的锁, 这个锁不应当被经常竞争。</li>
+<li>主线程定期需要协调所有worker线程。这是通过主线程发不到工作线程来完成的。发布过程需要lock来锁定消息队列。这个锁不应当被高度争用，但从技术上可以进行阻止。</li>
+<li>当envoy记录日志至stderr， 它将会获得process wide lock。 通常来说， envoy 本地日志被认为对于性能来说是糟糕的，所以没有改善该过程的想法。</li>
+<li>还有一切其他随机锁。但他们都不在影响性能的过程中，也永远不当被争用。</li>
+</ul>
+
+<h2 id="线程局部变量-3">线程局部变量<sup class="footnote-ref" id="fnref:3"><a href="#fn:3">3</a></sup></h2>
+
+<p>由于envoy将主线程的职责和worker线程的职责完全分开，需要在主线程完成复杂的处理同时使每个worker线程高度可用。本节将介绍Envoy的高级线程本地存储（TLS）系统。在下一节中，我将描述如何使用它来处理集群管理。</p>
+
+<p>如已经描述的那样，主线程基本上处理Envoy过程中的所有管理/控制平面功能。（控制平面在这里有点过载，但在特使程序本身考虑并与工人做的转发进行比较时，似乎是合适的）。主线程进程执行某些操作是一种常见模式，然后需要使用该工作的结果更新每个工作线程，并且工作线程不需要在每次访问时获取锁定</p>
+
+<p><img src="https://cdn-images-1.medium.com/max/1000/1*fyx9IJBwbGDVtK_LhwQB6A.png" alt="img" /></p>
+
+<p>Envoy的TLS系统工作如下:</p>
+
+<ul>
+<li>运行在主线程的代码分配了一个线程范围的TLS插槽<sup class="footnote-ref" id="fnref:4"><a href="#fn:4">4</a></sup>，虽然是abstracted的，但实际上时允许o(1)访问的索引</li>
+<li>主线程可以设置任意数据在slot中，当它完成时，这个数据将会发送到所有worker作为一个正常的事件循环</li>
+<li>工作线程可以从TLS插槽中读取获取它所能获取的局部数据。</li>
+</ul>
+
+<p>虽然非常简单，但它非常强大与<a href="https://en.wikipedia.org/wiki/Read-copy-update">只读副本更新锁</a>类似.(实质上，worker线程在工作时从不会看到插槽的数据发生任何改变， 变化只发生在event切换的时候<sup class="footnote-ref" id="fnref:5"><a href="#fn:5">5</a></sup>)， Envoy用两种不同的方式来使用它:</p>
+
+<ul>
+<li>存储不同的数据在每个worker上，获取时不需要任何锁</li>
+<li>通过将指向只读全局数据的共享指针存储到每个worker上，从而，每个worker具有该数据的引用计数，该计数在工作时不会递减。仅当所有worker查询和读取新的共享数据时会将原数据摧毁，这与RCU相同。</li>
+</ul>
+
+<h2 id="集群更新线程">集群更新线程</h2>
+
+<p>在本节中，我将描述TLS如何用于集群管理。群集管理包括xDS API处理和DNS以及运行状况检查。</p>
+
+<p><img src="https://cdn-images-1.medium.com/max/800/1*R-U8hs34U93Yj1TzbhwE5w.png" alt="img" /></p>
+<div class="footnotes">
+
+<hr />
+
+<ol>
+<li id="fn:1">原文 in-memory buffer
+ <a class="footnote-return" href="#fnref:1"><sup>[return]</sup></a></li>
+<li id="fn:2">central &ldquo;stat store&rdquo;
+ <a class="footnote-return" href="#fnref:2"><sup>[return]</sup></a></li>
+<li id="fn:3">Thread Local Storage(TLS)
+ <a class="footnote-return" href="#fnref:3"><sup>[return]</sup></a></li>
+<li id="fn:4">原文 slot
+ <a class="footnote-return" href="#fnref:4"><sup>[return]</sup></a></li>
+<li id="fn:5">原文 Change only happens during the quiescent period between work events
+ <a class="footnote-return" href="#fnref:5"><sup>[return]</sup></a></li>
+</ol>
+</div>
+
+    </section> 
+    
+    
+     
+  </article>
+  
+<div class="share-card">
+    <a class="twitter" href="https://twitter.com/intent/tweet?text=%2fpost%2fenvoy_thread%2f - Envoy%e7%9a%84%e7%ba%bf%e7%a8%8b%e6%a8%a1%e5%9e%8b%5b%e7%bf%bb%e8%af%91%5d "><i class="fa fa-twitter"></i> Tweet</a>
+
+    <a class="facebook" href="#" onclick="
+        window.open(
+          'https://www.facebook.com/sharer/sharer.php?u='+encodeURIComponent(location.href),
+          'facebook-share-dialog',
+          'width=626,height=436');
+        return false;"><i class="fa fa-facebook"></i> Share
+    </a>
+</div>
+
+
+ 
+  
+  
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+
+(function() {
+    
+    
+    if (window.location.hostname == "localhost")
+        return;
+
+    var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+    var disqus_shortname = 'lynskylate';
+    dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+    (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+})();
+</script>
+<noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="http://disqus.com/" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+        </main>
+        
+        <aside class="desktop-only">
+            
+	<div class="widgets">
+  <section itemscope itemtype="https://schema.org/Person" class="widget socials">
+    <a href="/about"><h2 class="widget-title">关于咸鱼博主</h2></a>
+    <div class="author-card" itemscope itemprop="author" itemtype="https://schema.org/Person">
+      <div class="author-dp">
+        <img itemprop='image' src="/images/xiaomai.jpg" alt=".Site.Param.name" />
+      </div>
+      <div class="author-bio">
+        
+        <h4 class="author-title">
+          lynskylate <span itemprop="name"></span>
+        </h4>
+        
+        
+        <div class="author-description" itemprop="description">
+          Life is short, code lasts forever.
+        </div>
+        
+      </div>
+    </div>
+    <h2 class="widget-title">联系我</h2>
+    <ul>
+      
+      
+      
+      
+      <li><a href="https://github.com/lynskylate"><i class="fa fa-github"></i></a></li>
+      
+      
+      <li><a href="mailto://lynskylate@gmail.com"><i class="fa fa-envelope"></i></a></li>
+      
+    </ul>
+  </section>
+
+  
+
+</div>
+
+
+            <footer id="footer">
+    <p class="small">
+      Copyright © 2019, lynskylate; all rights reserved.
+    </p>
+</footer>
+        </aside>
+    </div>
+    
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+<script src="js/main.js"></script>
+<script src="js/highlight.js"></script>
+<script>hljs.initHighlightingOnLoad();</script>
+
+
+
+
+
+</body>
+</html>
