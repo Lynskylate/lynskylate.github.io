@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+	<head>
+    <meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<base href="https://lynskylate.github.io">
+<meta name="author" content="lynskylate">
+
+<meta name="generator" content="Hugo 0.53" />
+<title>StackTrace的实现</title>
+<link rel="shortcut icon" href="https://lynskylate.github.io/images/favicon.ico" type="">
+<link rel="stylesheet" href="https://lynskylate.github.io/css/style.css">
+<link rel="stylesheet" href="https://lynskylate.github.io/css/highlight.css">
+
+
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/latest/css/font-awesome.min.css">
+
+
+<link href="https://lynskylate.github.io/index.xml" rel="alternate" type="application/rss+xml" title="Lynskylate&#39;s Blog" />
+
+
+
+
+<meta property="og:title" content="StackTrace的实现">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://lynskylate.github.io">
+
+
+  <meta property="og:image" content="https://lynskylate.github.iohttps://cdn.nlark.com/yuque/0/2019/png/279676/1562340915972-aa11d229-a85b-4e1f-b355-87698b45e1df.png">
+
+
+
+  <meta name="og:description" content="naive的backtrace实现">
+
+
+<link rel="canonical" href="https://lynskylate.github.io/post/stacktrace/">
+
+    </head>
+<body>
+	  <header class="header">
+			<img src="https://lynskylate.github.io/images/xiaomai.jpg" alt="">
+
+		</header>
+    <nav class="main-nav">
+        <ul>
+    <li><a href='https://lynskylate.github.io'>Articles</a></li>
+    <li><a href='https://lynskylate.github.io/about'>About</a></li>
+    <li><a href='https://lynskylate.github.io/tags'>Tags</a></li>
+    
+        <li><a href="https://lynskylate.github.io/index.xml" target="blank">Subscribe</a></li>
+    
+</ul>
+
+    </nav>
+    
+    
+    
+    <div id="site-wrapper">
+        <main>
+            
+  <article class="single">
+    <h1>StackTrace的实现</h1>
+    <section class="extras">
+        <span class="tags">
+          <small class="time">July 6, 2019</small>
+          
+             , posted under 
+             
+                <a href="https://lynskylate.github.io/tags/backtrace">backtrace</a>
+             
+          
+        </span>
+    </section>
+    <section class="description">
+      naive的backtrace实现
+    </section>
+    
+    <section class="featuredImage">
+        <img src="https://cdn.nlark.com/yuque/0/2019/png/279676/1562340915972-aa11d229-a85b-4e1f-b355-87698b45e1df.png" alt="StackTrace的实现">
+    </section>
+    
+    <section id="content" class="body">
+        
+
+<h1 id="stacktrace的实现">StackTrace的实现</h1>
+
+<h2 id="简介">简介</h2>
+
+<p>在python java这些语言中，一旦程序发生了异常，如下图，会打印异常发生时的调用栈，而在c/c++中如果需要实现类似的功能则要我们依靠libbacktrace之类的库去打印调用栈，</p>
+
+<p><img src="https://cdn.nlark.com/yuque/0/2019/png/279676/1562305902441-6803d9fe-cf18-4f6f-9002-3fe3d0e4fadf.png" alt="image.png" /></p>
+
+<p>在c/c++中如何去实现一个类似libbacktrace这样的库来打印函数调用栈呢？本文将介绍一种naive的backtrace实现，讲解backtrace实现的原理。</p>
+
+<h2 id="追踪调用栈的基础-栈帧-stack-frame">追踪调用栈的基础-栈帧(stack frame)</h2>
+
+<p>栈帧(stack frame)保存着函数调用信息，如下图它存储于c内存布局中的栈区。</p>
+
+<p><img src="https://cdn.nlark.com/yuque/0/2019/png/279676/1562340915972-aa11d229-a85b-4e1f-b355-87698b45e1df.png" alt="image.png" /></p>
+
+<p>栈帧是实现backtrace的核心关键，它会存储着函数调用时的局部变量同时记录了函数调用的上下文如返回地址，其具体布局如下图。</p>
+
+<p><img src="https://cdn.nlark.com/yuque/0/2019/png/279676/1562341165791-150239ae-ef89-4a36-aba2-ef47c88ddb5d.png" alt="image.png" /></p>
+
+<p>ebp寄存器存储着栈基址指针，esp寄存器存储着当前栈顶指针，我们将ebp-esp之间的内存称为栈帧。</p>
+
+<p>想要具体了解函数调用时，栈帧是如何变化的我们可以从汇编代码进行了解，我们将如下的代码进行反汇编</p>
+
+<pre><code class="language-c">// file:naive.c
+int add(int a, int b){
+    return a + b;
+}
+
+int main(int argc, char* argv[]){
+    add(1,2);
+}
+// 反汇编命令 gcc -m32 -S -O0 -masm=intel naive.c
+</code></pre>
+
+<p>得到如下代码</p>
+
+<pre><code class="language-assembly">_add:                                   ## @add
+    push    ebp
+    mov ebp, esp
+    mov eax, dword ptr [ebp + 12]
+    add eax, dword ptr [ebp + 8]
+    pop ebp
+    ret
+_main:                                  ## @main
+    push    ebp
+    mov ebp, esp
+    sub esp, 24 # 预留栈空间存储局部变量
+    mov eax, dword ptr [ebp + 12]
+    mov ecx, dword ptr [ebp + 8]
+    mov dword ptr [esp], 1 # 设置局部变量1，2
+    mov dword ptr [esp + 4], 2
+    mov dword ptr [ebp - 4], eax ## 4-byte Spill
+    mov dword ptr [ebp - 8], ecx ## 4-byte Spill
+    call    _add
+    xor ecx, ecx
+    mov dword ptr [ebp - 12], eax ## 4-byte Spill
+    mov eax, ecx
+    add esp, 24
+    pop ebp
+    ret
+</code></pre>
+
+<p>在汇编中使用call _add时，它会将下一条地址推入栈中，并跳转至函数位置，即<code>call _add</code>相当于两条指令,<code>push pc; jmp _add</code>, 在使用call _add 指令后，此时栈顶(esp指向的地址)存储着xor ecx, ecx指令的地址。</p>
+
+<p>在进入_add后，会将当前栈基址推入栈中，并通过mov ebp, esp形成新的栈帧。</p>
+
+<p>如上图我们在32位的程序中可以通过[ebp+4]得到函数的返回地址，同时此时ebp指向的地址的值是保存的ebp值。</p>
+
+<p><img src="https://cdn.nlark.com/yuque/0/2019/png/279676/1562346123718-20255897-804d-4f87-ab0a-3b01f0fff147.png" alt="image.png" /></p>
+
+<p>更加详细的可以参考如下文章</p>
+
+<p><a href="https://manybutfinite.com/post/journey-to-the-stack/">journey-to-the-stack</a></p>
+
+<p><a href="https://www.zhihu.com/question/22444939">知乎:函数调用过程中栈到底是怎么压入和弹出的？</a></p>
+
+<p><a href="https://eli.thegreenplace.net/2011/09/06/stack-frame-layout-on-x86-64">stack frameout layout</a></p>
+
+<h2 id="获取调用栈信息">获取调用栈信息</h2>
+
+<p>通过不断取寄存器ebp地址，我们能够获得一个个相连的栈帧，我们如何获取ebp的值呢，通过纯c代码难以实现这个目标，因此最终我使用了内联汇编来实现</p>
+
+<pre><code class="language-c++">typedef void* ptr_t;
+
+inline ptr_t* get_ebp(){
+    ptr_t* reg_ebp;
+
+  asm volatile(
+          &quot;movq %%rbp, %0 \n\t&quot;
+          : &quot;=r&quot; (reg_ebp)
+  );
+    return reg_ebp;
+}
+</code></pre>
+
+<p>但是我们通过函数的栈帧仍然无法获取完整的调用栈信息，我们需要还原究竟是哪个函数调用的，因此需要用过返回地址来获取调用函数。</p>
+
+<p>所有函数其实都是有一个范围的，它存储在函数的代码区，我们通过记录函数的地址，并在其中寻找离返回地址最近并低于返回地址的函数地址就是其调用的函数。最初我是通过如下代码来记录函数地址的</p>
+
+<pre><code class="language-c">typedef struct {
+        char *function_name;
+        int *function_address;
+}function_record_t;
+
+typedef struct{
+        int now_size;
+        int max_size;
+        function_record_t *records;
+}function_record_vec_t;
+
+function_record_vec_t vec;
+
+
+int function_record_vec_init(function_record_vec_t *self){
+        self-&gt;now_size = 0;
+        self-&gt;max_size = 5;
+        self-&gt;records = (function_record_t *)malloc(sizeof(function_record_t) * self-&gt;max_size);
+        if(!self-&gt;records) return 0;
+        return 1;
+}
+
+int function_record_vec_push(function_record_vec_t *self, function_record_t record){
+        if(self-&gt;now_size == self-&gt;max_size){
+                self-&gt;max_size = self-&gt;max_size &lt;&lt; 1;
+                self-&gt;records = (function_record_t *)realloc(self-&gt;records, sizeof(function_record_t) * self-&gt;max_size);                if(!self-&gt;records) return 0;
+        }
+        self-&gt;records[self-&gt;now_size++] = record;
+        return 1;
+}
+
+// 寻找匹配函数信息，需要自己手动记录所有函数信息
+function_record_t * find_best_record(int *return_address){
+        for(int i=0; i&lt;vec.now_size; i++){
+                if(vec.records[i].function_address &lt; return_address)
+                {
+                        return vec.records+i; // 返回最符合要求的函数地址
+                }
+        }
+}
+
+int main(void){
+        function_record_vec_init(&amp;vec);
+        function_record_t main_f = {&quot;main&quot;, &amp;main};
+        function_record_vec_push(&amp;vec, main_f);
+            // 省略记录所有函数地址和名字的过程
+        qsort(vec.records, vec.now_size, sizeof(function_record_t), compare_record);//地址从低到高排序
+}
+</code></pre>
+
+<p>这种方式实在过于愚蠢，于是我开始寻找能够直接通过地址获取调用函数信息的api，linux系统中的<a href="[http://man7.org/linux/man-pages/man3/dladdr.3.html](http://man7.org/linux/man-pages/man3/dladdr.3.html)">dladdr</a>恰好能符合我的需求，因此上面的代码能够简化成下面的版本</p>
+
+<pre><code class="language-c++">void identify_function_ptr( void *func)  {
+  Dl_info info;
+  int rc;
+
+  rc = dladdr(func, &amp;info);
+
+  if (!rc)  {
+      printf(&quot;Problem retrieving program information for %x:  %s\n&quot;, func, dlerror());
+  }
+
+  printf(&quot;Address located in function %s within the program %s\n&quot;, info.dli_fname, info.dli_sname);
+}
+</code></pre>
+
+<p>传入一个地址，就能够获取这个地址最有可能在哪个函数中。</p>
+
+<p>最终代码如下</p>
+
+<pre><code class="language-c++">#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;unistd.h&gt;
+#include &lt;dlfcn.h&gt;
+
+
+void identify_function_ptr( void *func)  {
+  Dl_info info;
+  int rc;
+
+  rc = dladdr(func, &amp;info);
+
+  if (!rc)  {
+      printf(&quot;Problem retrieving program information for %x:  %s\n&quot;, func, dlerror());
+  }
+
+  printf(&quot;Address located in function %s within the program %s\n&quot;, info.dli_fname, info.dli_sname);
+
+}
+
+typedef void* ptr_t;
+
+
+typedef struct _frame_t{
+        ptr_t  return_address;
+        ptr_t  ebp;
+        struct _frame_t *next_frame;
+}frame_t;
+
+
+
+
+int frame_init(frame_t *self, ptr_t ebp, ptr_t return_address){
+        self-&gt;return_address = return_address;
+        self-&gt;ebp = ebp;
+        self-&gt;next_frame = NULL;
+}
+
+void back_trace(){
+        ptr_t* reg_ebp;
+
+asm volatile(
+        &quot;movq %%rbp, %0 \n\t&quot;
+        : &quot;=r&quot; (reg_ebp)
+);
+
+        frame_t* now_frame=NULL;
+
+        while(reg_ebp){
+                frame_t *new_frame = (frame_t *) malloc(sizeof(frame_t));
+                frame_init(new_frame,  (ptr_t)reg_ebp, (ptr_t)(*(reg_ebp+1)));
+                new_frame-&gt;next_frame = now_frame;
+                now_frame = new_frame;
+                reg_ebp = (ptr_t)(*reg_ebp);
+        }
+
+        while(now_frame){
+                identify_function_ptr((ptr_t)now_frame-&gt;return_address);
+                now_frame = now_frame-&gt;next_frame;
+        }
+}
+
+
+void two(){
+        back_trace();
+}
+
+void one(){
+        two();
+}
+
+int main(void){
+        one();
+}
+
+</code></pre>
+
+<p>其结果如下</p>
+
+<p><img src="https://cdn.nlark.com/yuque/0/2019/png/279676/1562347223657-40006466-150a-4498-9846-7749fc9877af.png" alt="image.png" /></p>
+
+<p>libbacktrace依赖libunwind来实现对调用栈的还原。上面的代码如果要对c++使用，需要使用demangle还原c++函数的符号名。</p>
+
+    </section> 
+    
+    
+     
+  </article>
+  
+<div class="share-card">
+    <a class="twitter" href="https://twitter.com/intent/tweet?text=https%3a%2f%2flynskylate.github.io%2fpost%2fstacktrace%2f - StackTrace%e7%9a%84%e5%ae%9e%e7%8e%b0 "><i class="fa fa-twitter"></i> Tweet</a>
+
+    <a class="facebook" href="#" onclick="
+        window.open(
+          'https://www.facebook.com/sharer/sharer.php?u='+encodeURIComponent(location.href),
+          'facebook-share-dialog',
+          'width=626,height=436');
+        return false;"><i class="fa fa-facebook"></i> Share
+    </a>
+</div>
+
+
+ 
+  
+  
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+
+(function() {
+    
+    
+    if (window.location.hostname == "localhost")
+        return;
+
+    var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+    var disqus_shortname = 'lynskylate';
+    dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+    (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+})();
+</script>
+<noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="http://disqus.com/" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+        </main>
+        
+        <aside class="desktop-only">
+            
+	<div class="widgets">
+  <section itemscope itemtype="https://schema.org/Person" class="widget socials">
+    <a href="https://lynskylate.github.io/about"><h2 class="widget-title">关于咸鱼博主</h2></a>
+    <div class="author-card" itemscope itemprop="author" itemtype="https://schema.org/Person">
+      <div class="author-dp">
+        <img itemprop='image' src="https://lynskylate.github.io/images/xiaomai.jpg" alt=".Site.Param.name" />
+      </div>
+      <div class="author-bio">
+        
+        <h4 class="author-title">
+          lynskylate <span itemprop="name"></span>
+        </h4>
+        
+        
+        <div class="author-description" itemprop="description">
+          Life is short, code lasts forever.
+        </div>
+        
+      </div>
+    </div>
+    <h2 class="widget-title">联系我</h2>
+    <ul>
+      
+      
+      
+      
+      <li><a href="https://github.com/lynskylate"><i class="fa fa-github"></i></a></li>
+      
+      
+      <li><a href="mailto://lynskylate@gmail.com"><i class="fa fa-envelope"></i></a></li>
+      
+    </ul>
+  </section>
+
+  
+
+</div>
+
+
+            <footer id="footer">
+    <p class="small">
+      Copyright © 2019, lynskylate; all rights reserved.
+    </p>
+</footer>
+        </aside>
+    </div>
+    
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+<script src="https://lynskylate.github.io/js/main.js"></script>
+<script src="https://lynskylate.github.io/js/highlight.js"></script>
+<script>hljs.initHighlightingOnLoad();</script>
+
+
+
+
+<script type="application/javascript">
+var doNotTrack = false;
+if (!doNotTrack) {
+	(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+	(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+	m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+	})(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+	ga('create', 'UA-132225586-1', 'auto');
+	
+	ga('send', 'pageview');
+}
+</script>
+
+
+</body>
+</html>
