@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+	<head>
+    <meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<base href="https://lynskylate.github.io/">
+<meta name="author" content="lynskylate">
+
+<meta name="generator" content="Hugo 0.161.1">
+<title>python数字图像处理（一）图像的常见操作</title>
+<link rel="shortcut icon" href="https://lynskylate.github.io/images/favicon.ico" type="">
+<link rel="stylesheet" href="https://lynskylate.github.io/css/style.css">
+<link rel="stylesheet" href="https://lynskylate.github.io/css/highlight.css">
+
+
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/latest/css/font-awesome.min.css">
+
+
+
+
+
+
+
+<meta property="og:title" content="python数字图像处理（一）图像的常见操作">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://lynskylate.github.io/">
+
+
+  <meta property="og:image" content="https://lynskylate.github.io//images/7840973/01.png">
+
+
+
+
+<link rel="canonical" href="https://lynskylate.github.io/post/7840973/">
+
+
+<script>
+  MathJax = {
+    tex: {
+      inlineMath: [['$', '$'], ['\\(', '\\)']],
+      displayMath: [['$$', '$$'], ['\\[', '\\]']],
+      processEscapes: true
+    },
+    svg: { fontCache: 'global' }
+  };
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" id="MathJax-script" async></script>
+
+
+    </head>
+<body>
+	  <header class="header">
+			<img src="https://lynskylate.github.io/images/xiaomai.jpg" alt="">
+
+		</header>
+    <nav class="main-nav">
+        <ul>
+    <li><a href='https://lynskylate.github.io/'>Articles</a></li>
+    <li><a href='https://lynskylate.github.io/about'>About</a></li>
+    <li><a href='https://lynskylate.github.io/tags'>Tags</a></li>
+    
+        <li><a href="https://lynskylate.github.io/index.xml" target="blank">Subscribe</a></li>
+    
+</ul>
+
+    </nav>
+    
+    
+    
+    <div id="site-wrapper">
+        <main>
+            
+  <article class="single">
+    <h1>python数字图像处理（一）图像的常见操作</h1>
+    <section class="extras">
+        <span class="tags">
+          <small class="time">November 15, 2017</small>
+          
+        </span>
+    </section>
+    <section class="description">
+      
+    </section>
+    
+    <section class="featuredImage">
+        <img src="https://lynskylate.github.io/images/7840973/01.png" alt="python数字图像处理（一）图像的常见操作">
+    </section>
+    
+    <section id="content" class="body">
+        <p>首先导入必要的库,使用Opencv读入图像,避免复杂的图像解析,同时使用Opencv作为算法的对比,由于使用环境为jupyter使用matplotlib直接可视化</p>
+<pre><code class="language-python">import cv2
+import matplotlib.pyplot as plt
+import numpy as np
+%matplotlib inline
+</code></pre>
+<h2 id="图片的存储">图片的存储</h2>
+<p>图片实质上就是一个矩阵，一个640*320的灰白图像其实就是一个（640,320）的矩阵，每个坐标点的值就代表该像素点的灰度。</p>
+<blockquote>
+<p>通常我们使用0-256的值来表示灰度的深浅，在三通道图像中表达某个通道的深浅，256=16*16，一次当我们使用16进制来表达三通道图像某个像素点的颜色时通常写作#ffffab这种形式</p>
+</blockquote>
+<h2 id="图片平移">图片平移</h2>
+<p>图片平移是最简单的操作了，直接使用坐标加减即可。<br>
+例如将一个图像向右平移10个像素点实质就是把所有的像素点的横坐标加上10，如（0，0）坐标就会变成（10,0）。<br>
+在下图的实现中不对图像进行resize，超出图像原本范围的全部舍弃。</p>
+<pre><code class="language-python">#使用matplotlib来显示opencv读取的图像
+dave = cv2.imread(&quot;dave.jpg&quot;)
+dave = cv2.cvtColor(dave,cv2.COLOR_BGR2RGB)
+plt.axis(&quot;off&quot;)
+plt.imshow(dave)
+plt.show()
+</code></pre>
+<p><img src="https://lynskylate.github.io/images/7840973/01.png" alt=""></p>
+<pre><code class="language-python">def translate(src,translate_x,translate_y):
+    src_h,src_w = src.shape[:2]
+    dst = np.zeros(src.shape,dtype=np.uint8)
+    for row in range(src_h):
+        for col in range(src_w):
+            h = int(row-translate_y)
+            w = int(col-translate_x)
+            if h&lt;src_h and h&gt;=0 and w&lt;src_w and w&gt;=0:
+                dst[row][col] = src[h][w]
+    return dst
+new_image = translate(dave,50,30)
+plt.axis(&quot;off&quot;)
+plt.imshow(new_image)
+plt.show()
+</code></pre>
+<p><img src="https://lynskylate.github.io/images/7840973/02.png" alt=""></p>
+<h2 id="图片缩放">图片缩放</h2>
+<p>在不考虑复用性的前提下,实验性的进行不插值缩放</p>
+<pre><code class="language-python">#在该代码中由于opencv读取默认为BGR将其转化为RGB图像
+gss = cv2.imread(&quot;Green_Sea_Shell.png&quot;)
+gss = cv2.cvtColor(gss,cv2.COLOR_BGR2RGB)
+plt.axis(&quot;off&quot;)
+plt.imshow(gss)
+plt.show()
+</code></pre>
+<p><img src="https://lynskylate.github.io/images/7840973/03.png" alt=""></p>
+<p>我们试着打印图像的分辨率,发现其为160*160的三通道图像,然后开始我们的实验性缩放</p>
+<pre><code class="language-python">print(gss.shape)
+#此处使用uint8格式的数据类型,gss将其转化为uint16是考虑到超出255的范围会出错,在结束后将其转化为原先的uint8类型
+new_image = np.zeros((80,80,3),dtype=np.uint8)
+gss = gss.astype(np.uint16)
+</code></pre>
+<p>(160, 160, 3)</p>
+<p>试着直接比较两种插值,简化边界条件直接取四邻域均值</p>
+<blockquote>
+<p>PS:此处这并非线性插值,只是取其领域均值看相比直接的缩放是否会减少其锯齿感</p>
+</blockquote>
+<pre><code class="language-python">for i in range(80):
+    for j in range(80):
+        #取靠近的四个像素点颜色的均值
+        pixel_sum = gss[i*2+1][j*2]+gss[i*2-1][j*2]+gss[i][j*2+1]+gss[i][j*2-1]+gss[i*2][j*2]
+        new_image[i][j] = (pixel_sum)/5
+plt.subplot(131)
+plt.axis(&quot;off&quot;)
+plt.title(&quot;Average&quot;)
+plt.imshow(new_image)
+
+for i in range(80):
+    for j in range(80):
+        new_image[i][j] = gss[i*2][j*2]
+plt.subplot(132)
+plt.axis(&quot;off&quot;)
+plt.imshow(new_image)
+plt.title(&quot;non_linear&quot;)
+
+gss = gss.astype(np.uint8)
+new_image = cv2.resize(gss,(80,80))
+plt.subplot(133)
+plt.title(&quot;opencv resize&quot;)
+plt.axis(&quot;off&quot;)
+plt.imshow(new_image)
+plt.show()
+</code></pre>
+<p><img src="https://lynskylate.github.io/images/7840973/04.png" alt=""></p>
+<p>从左至右分别为 均值插值 非线性差值 opencv实现的resize</p>
+<p>可以看出opencv默认的差值与非线性插值的区别,非线性插值的锯齿感更为明显</p>
+<pre><code class="language-python">new_image = np.zeros((320,320,3),dtype=np.uint8)
+for i in range(320):
+    for j in range(320):
+        new_image[i][j] = gss[int(i/2)][int(j/2)]
+plt.subplot(121)
+plt.axis(&quot;off&quot;)
+plt.title(&quot;non_linear&quot;)
+plt.imshow(new_image)
+plt.subplot(122)
+plt.axis(&quot;off&quot;)
+plt.title(&quot;origin&quot;)
+plt.imshow(gss)
+plt.show()
+</code></pre>
+<p><img src="https://lynskylate.github.io/images/7840973/05.png" alt=""></p>
+<p>上图为将其非线性插值放大,与原图的对比</p>
+<p>对上面的代码进行整理,处理下边界条件实现的不插值resize</p>
+<pre><code class="language-python">def resize(orign_image,shape):
+    src_height, src_width = orign_image.shape[:2]
+    scale_height, scale_width = shape
+    sw = src_width/scale_width
+    sh = src_height/scale_height
+    if len(orign_image.shape)&lt;3:
+        scale_image = np.zeros(shape,dtype=np.uint8)
+    else:
+        scale_image = np.zeros((shape[0],shape[1],orign_image.shape[2]),dtype=np.uint8)
+    def ceil(length, bound):
+        if length&gt;=bound:
+            return int(bound-1)
+        elif length&lt;0:
+            return 0
+        else:
+            return int(length)
+    for i in range(scale_height):
+        for j in range(scale_width):
+            scale_image[i][j] = orign_image[ceil(i*sh,src_height)][ceil(j*sw,src_width)]
+    return scale_image
+</code></pre>
+<p>使用上面的代码可以实现不插值缩放,但是其复用性不强,将坐标变换单独抽离出来,实现下面的线性插值</p>
+<pre><code class="language-python">def bilinear_interpolate(im, y, x):
+    x = np.asarray(x)
+    y = np.asarray(y)
+
+    x0 = np.floor(x).astype(int)
+    x1 = x0 + 1
+    y0 = np.floor(y).astype(int)
+    y1 = y0 + 1
+
+    x0 = np.clip(x0, 0, im.shape[1]-1);
+    x1 = np.clip(x1, 0, im.shape[1]-1);
+    y0 = np.clip(y0, 0, im.shape[0]-1);
+    y1 = np.clip(y1, 0, im.shape[0]-1);
+
+    Ia = im[ y0, x0 ]
+    Ib = im[ y1, x0 ]
+    Ic = im[ y0, x1 ]
+    Id = im[ y1, x1 ]
+
+    wa = (x1-x) * (y1-y)
+    wb = (x1-x) * (y-y0)
+    wc = (x-x0) * (y1-y)
+    wd = (x-x0) * (y-y0)
+
+    return wa*Ia + wb*Ib + wc*Ic + wd*Id
+
+def bilinear_resize(src,dsize):
+    src_h,src_w = src.shape[:2]
+    fh = dsize[0]/src_h
+    fw = dsize[1]/src_w
+    if len(src.shape)&gt;3:
+        dst = np.zeros(dsize,dtype=np.uint8)
+    else:
+        dst = np.zeros(dsize+src.shape[2:],dtype=np.uint8)
+    for row in range(dst.shape[0]):
+        for col in range(dst.shape[1]):
+            dst[row][col] = bilinear_interpolate(src,row/fh,col/fw)
+    return dst
+</code></pre>
+<p>使用著名的lenna图来作为两种插值方式的对比</p>
+<pre><code class="language-python">lenna = cv2.imread(&quot;lena.jpg&quot;)
+lenna = cv2.cvtColor(lenna,cv2.COLOR_BGR2RGB)
+plt.imshow(lenna)
+plt.axis(&quot;off&quot;)
+plt.show()
+print(lenna.shape)
+</code></pre>
+<p><img src="https://lynskylate.github.io/images/7840973/06.png" alt=""></p>
+<p>(512, 512, 3)</p>
+<pre><code class="language-python">resize_lenna = cv2.resize(lenna,(64,64))
+plt.axis(&quot;off&quot;)
+plt.imshow(resize_lenna)
+plt.show()
+</code></pre>
+<p><img src="https://lynskylate.github.io/images/7840973/07.png" alt=""></p>
+<pre><code class="language-python">nearst_lenna = resize(lenna,(512,512))
+plt.subplot(121)
+plt.axis(&quot;off&quot;)
+plt.imshow(nearst_lenna)
+bilinear_lenna = bilinear_resize(lenna,(512,512))
+plt.subplot(122)
+plt.axis(&quot;off&quot;)
+plt.imshow(bilinear_lenna)
+plt.show()
+</code></pre>
+<p><img src="https://lynskylate.github.io/images/7840973/08.png" alt=""></p>
+<h2 id="图片旋转的实现">图片旋转的实现</h2>
+<p>在下面的代码中使用numpy进行矩阵操作完成了图片的旋转</p>
+<p>首先简单的使用书上的旋转矩阵将原坐标映射到新的坐标上</p>
+<pre><code class="language-python">def rotate_image(src,rotate_angel):
+    src_h, src_w = src.shape[:2]
+    dsize = src.shape
+    dst = np.zeros(src.shape,dtype=np.uint8)
+    def _rotate_coodinate(x,y,angel):
+        import math
+        angel = angel/180*math.pi
+        coodinate = np.array([x,y,1])
+        rotate_matrix = np.array([[math.cos(angel),math.sin(angel),1],[-math.sin(angel),math.cos(angel),1],[0,0,1]])
+        coodinate = coodinate.dot(rotate_matrix)
+        x,y,_ = coodinate
+        return int(x),int(y)
+    for row in range(src_h):
+        for col in range(src_w):
+            dst_x,dst_y = _rotate_coodinate(col,row,rotate_angel)
+            if dst_x &lt; 0 or dst_x &gt;= src_w or dst_y&lt;0 or dst_y&gt;=src_h:
+                pass
+            else:
+                dst[dst_y][dst_x] = src[row][col]
+    return dst
+new_image = rotate_image(lenna,-40)
+plt.axis(&quot;off&quot;)
+plt.imshow(new_image)
+plt.show()
+</code></pre>
+<p><img src="https://lynskylate.github.io/images/7840973/09.png" alt=""></p>
+<p>此处代码的缺陷有2点:<br>
+* 图片偏离中心<br>
+* 未反向映射导致,float转int时图像存在黑点<br>
+对上述代码进行修改,进行反向映射.<br>
+使用矩阵将其移动回中心,同时旋转矩阵为之前的逆</p>
+<pre><code class="language-python">def rotate_image(src,rotate_angel):
+    src_h, src_w = src.shape[:2]
+    dsize = src.shape
+    dst = np.zeros(src.shape,dtype=np.uint8)
+    def _rotate_coodinate(x,y,angel):
+        import math
+        angel = angel/180*math.pi
+        coodinate = np.array([x,y,1])
+        rotate_matrix = np.array([[math.cos(angel),-math.sin(angel),0],[math.sin(angel),math.cos(angel),0],[0,0,1]])
+        rotate_center_first = np.array([[1,0,0],[0,-1,0],[-0.5*dsize[1],0.5*dsize[0],1]])
+        rotate_center_last = np.array([[1,0,0],[0,-1,0],[0.5*dsize[1],0.5*dsize[0],1]])
+        coodinate = coodinate.dot(rotate_center_first).dot(rotate_matrix).dot(rotate_center_last)
+        x,y,_ = coodinate
+        return int(x),int(y)
+    for row in range(src_h):
+        for col in range(src_w):
+            dst_x,dst_y = _rotate_coodinate(col,row,rotate_angel)
+            if dst_x &lt; 0 or dst_x &gt;= src_w or dst_y&lt;0 or dst_y&gt;=src_h:
+                pass
+            else:
+                dst[row][col] = src[dst_x][dst_y]
+    return dst
+</code></pre>
+<pre><code class="language-python">new_image = rotate_image(lenna,-40)
+plt.imshow(new_image)
+plt.axis(&quot;off&quot;)
+plt.show()
+</code></pre>
+<p><img src="https://lynskylate.github.io/images/7840973/10.png" alt=""></p>
+<h2 id="仿射变换">仿射变换</h2>
+<h3 id="垂直变换">垂直变换</h3>
+<p>将单个点的坐标（x，y）转换为下面矩阵</p>
+<p>$$\begin{bmatrix}
+x &amp; y &amp; 1\end{bmatrix}
+$$</p>
+<p>乘上下面矩阵进行垂直方向的偏移变换</p>
+<p>$$\begin{bmatrix}
+1 &amp; 0 &amp; 0\\  s_v &amp; 1 &amp; 0\\ 0 &amp; 0 &amp; 1 \end {bmatrix}
+$$</p>
+<pre><code class="language-python">def transform(src,s_v):
+    src_h, src_w = src.shape[:2]
+    dsize = src.shape
+    dst = np.zeros(src.shape,dtype=np.uint8)
+    def _vertical_transform(x,y,s_v):
+        coodinate = np.array([x,y,1])
+        transform_matrix = np.array([[1,0,0],[s_v,1,0],[0,0,1]])
+        x,y,_ = coodinate.dot(transform_matrix)
+        if x&gt;=dsize[1]:
+            x = dsize[1]-1
+        if x&lt;0:
+            x = 0
+        if y&gt;=dsize[0]:
+            y = dsize[0]-1
+        if y&lt;0:
+            y = 0
+        return int(x),int(y)
+    for row in range(dst.shape[0]):
+        for col in range(dst.shape[1]):
+            dst_x,dst_y = _vertical_transform(col,row,s_v)
+            dst[dst_y][dst_x] = src[row][col]
+    return dst
+</code></pre>
+<pre><code class="language-python">new_image = transform(lenna,0.5)
+plt.imshow(new_image)
+plt.axis(&quot;off&quot;)
+plt.show()
+</code></pre>
+<p><img src="https://lynskylate.github.io/images/7840973/11.png" alt=""></p>
+<h3 id="水平变换">水平变换</h3>
+<pre><code class="language-python">def transform(src,s_h):
+    src_h, src_w = src.shape[:2]
+    dsize = src.shape
+    dst = np.zeros(src.shape,dtype=np.uint8)
+    def _vertical_transform(x,y,s_v):
+        coodinate = np.array([x,y,1])
+        transform_matrix = np.array([[1,s_h,0],[0,1,0],[0,0,1]])
+        x,y,_ = coodinate.dot(transform_matrix)
+        if x&gt;=dsize[1]:
+            x = dsize[1]-1
+        if x&lt;0:
+            x = 0
+        if y&gt;=dsize[0]:
+            y = dsize[0]-1
+        if y&lt;0:
+            y = 0
+        return int(x),int(y)
+    for row in range(dst.shape[0]):
+        for col in range(dst.shape[1]):
+            dst_x,dst_y = _vertical_transform(col,row,s_h)
+            dst[dst_y][dst_x] = src[row][col]
+    return dst
+</code></pre>
+<pre><code class="language-python">new_image = transform(lenna,0.3)
+plt.imshow(new_image)
+plt.axis(&quot;off&quot;)
+plt.show()
+</code></pre>
+<p><img src="https://lynskylate.github.io/images/7840973/12.png" alt=""></p>
+
+    </section> 
+    
+    
+     
+  </article>
+  
+<div class="share-card">
+    <a class="twitter" href="https://twitter.com/intent/tweet?text=https%3a%2f%2flynskylate.github.io%2fpost%2f7840973%2f - python%e6%95%b0%e5%ad%97%e5%9b%be%e5%83%8f%e5%a4%84%e7%90%86%ef%bc%88%e4%b8%80%ef%bc%89%e5%9b%be%e5%83%8f%e7%9a%84%e5%b8%b8%e8%a7%81%e6%93%8d%e4%bd%9c "><i class="fa fa-twitter"></i> Tweet</a>
+
+    <a class="facebook" href="#" onclick="
+        window.open(
+          'https://www.facebook.com/sharer/sharer.php?u='+encodeURIComponent(location.href),
+          'facebook-share-dialog',
+          'width=626,height=436');
+        return false;"><i class="fa fa-facebook"></i> Share
+    </a>
+</div>
+
+
+ 
+  
+  
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+
+(function() {
+    
+    
+    if (window.location.hostname == "localhost")
+        return;
+
+    var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+    var disqus_shortname = 'lynskylate';
+    dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+    (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+})();
+</script>
+<noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="http://disqus.com/" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+        </main>
+        
+        <aside class="desktop-only">
+            
+	<div class="widgets">
+  <section itemscope itemtype="https://schema.org/Person" class="widget socials">
+    <a href="https://lynskylate.github.io/about"><h2 class="widget-title">关于咸鱼博主</h2></a>
+    <div class="author-card" itemscope itemprop="author" itemtype="https://schema.org/Person">
+      <div class="author-dp">
+        <img itemprop='image' src="https://lynskylate.github.io/images/xiaomai.jpg" alt=".Site.Param.name" />
+      </div>
+      <div class="author-bio">
+        
+        <h4 class="author-title">
+          lynskylate <span itemprop="name"></span>
+        </h4>
+        
+        
+        <div class="author-description" itemprop="description">
+          Life is short, code lasts forever.
+        </div>
+        
+      </div>
+    </div>
+    <h2 class="widget-title">联系我</h2>
+    <ul>
+      
+      
+      
+      
+      <li><a href="https://github.com/lynskylate"><i class="fa fa-github"></i></a></li>
+      
+      
+      <li><a href="mailto://lynskylate@gmail.com"><i class="fa fa-envelope"></i></a></li>
+      
+    </ul>
+  </section>
+
+  
+
+</div>
+
+
+            <footer id="footer">
+    <p class="small">
+      Copyright © 2019, lynskylate; all rights reserved.
+    </p>
+</footer>
+        </aside>
+    </div>
+    
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+<script src="https://lynskylate.github.io/js/main.js"></script>
+<script src="https://lynskylate.github.io/js/highlight.js"></script>
+<script>hljs.initHighlightingOnLoad();</script>
+
+
+
+
+
+</body>
+</html>

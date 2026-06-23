@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+	<head>
+    <meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<base href="https://lynskylate.github.io/">
+<meta name="author" content="lynskylate">
+
+<meta name="generator" content="Hugo 0.161.1">
+<title>python数字图像处理（三）边缘检测常用算子</title>
+<link rel="shortcut icon" href="https://lynskylate.github.io/images/favicon.ico" type="">
+<link rel="stylesheet" href="https://lynskylate.github.io/css/style.css">
+<link rel="stylesheet" href="https://lynskylate.github.io/css/highlight.css">
+
+
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/latest/css/font-awesome.min.css">
+
+
+
+
+
+
+
+<meta property="og:title" content="python数字图像处理（三）边缘检测常用算子">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://lynskylate.github.io/">
+
+
+  <meta property="og:image" content="https://lynskylate.github.io//images/7881300/01.png">
+
+
+
+
+<link rel="canonical" href="https://lynskylate.github.io/post/7881300/">
+
+
+<script>
+  MathJax = {
+    tex: {
+      inlineMath: [['$', '$'], ['\\(', '\\)']],
+      displayMath: [['$$', '$$'], ['\\[', '\\]']],
+      processEscapes: true
+    },
+    svg: { fontCache: 'global' }
+  };
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" id="MathJax-script" async></script>
+
+
+    </head>
+<body>
+	  <header class="header">
+			<img src="https://lynskylate.github.io/images/xiaomai.jpg" alt="">
+
+		</header>
+    <nav class="main-nav">
+        <ul>
+    <li><a href='https://lynskylate.github.io/'>Articles</a></li>
+    <li><a href='https://lynskylate.github.io/about'>About</a></li>
+    <li><a href='https://lynskylate.github.io/tags'>Tags</a></li>
+    
+        <li><a href="https://lynskylate.github.io/index.xml" target="blank">Subscribe</a></li>
+    
+</ul>
+
+    </nav>
+    
+    
+    
+    <div id="site-wrapper">
+        <main>
+            
+  <article class="single">
+    <h1>python数字图像处理（三）边缘检测常用算子</h1>
+    <section class="extras">
+        <span class="tags">
+          <small class="time">November 22, 2017</small>
+          
+        </span>
+    </section>
+    <section class="description">
+      
+    </section>
+    
+    <section class="featuredImage">
+        <img src="https://lynskylate.github.io/images/7881300/01.png" alt="python数字图像处理（三）边缘检测常用算子">
+    </section>
+    
+    <section id="content" class="body">
+        <p>在该文将介绍基本的几种应用于边缘检测的滤波器,首先我们读入saber用来做为示例的图像</p>
+<pre><code class="language-python">#读入图像代码,在此之前应当引入必要的opencv matplotlib numpy
+saber = cv2.imread(&quot;saber.png&quot;)
+saber = cv2.cvtColor(saber,cv2.COLOR_BGR2RGB)
+plt.imshow(saber)
+plt.axis(&quot;off&quot;)
+plt.show()
+</code></pre>
+<p><img src="https://lynskylate.github.io/images/7881300/01.png" alt=""></p>
+<p>使用上图作为滤波器使用的图形</p>
+<h2 id="roberts-交叉梯度算子">Roberts 交叉梯度算子</h2>
+<p>Roberts交叉梯度算子由两个$2\times2$的模版构成，如图。</p>
+<p>$$ \begin{bmatrix}
+-1 &amp; 0 \\
+0 &amp; 1
+\end{bmatrix}
+$$</p>
+<p>$$ \begin{bmatrix}
+0 &amp; -1 \\
+1 &amp; 0
+\end{bmatrix}
+$$</p>
+<p>对如图的矩阵分别才用两个模版相乘，并加在一起</p>
+<p>$$ \begin{bmatrix}
+Z_1 &amp; Z_2 &amp; Z_3 \\
+Z_4 &amp; Z_5 &amp; Z_6 \\
+Z_7 &amp; Z_8 &amp; Z_9 \\
+\end{bmatrix}
+$$</p>
+<p>简单表示即<br>
+$|z_9-z_5|+|z_8-z_6|$。<br>
+可以简单用编程实现</p>
+<p>首先将原图像进行边界扩展，并将其转换为灰度图。</p>
+<pre><code class="language-python">gray_saber = cv2.cvtColor(saber,cv2.COLOR_RGB2GRAY)
+gray_saber = cv2.resize(gray_saber,(200,200))
+</code></pre>
+<p>在接下来的的代码中我们对图像都会进行边界扩展，是因为将图像增加宽度为1的图像能够使在计算3*3的算子时不用考虑边界情况</p>
+<pre><code class="language-python">def RobertsOperator(roi):
+    operator_first = np.array([[-1,0],[0,1]])
+    operator_second = np.array([[0,-1],[1,0]])
+    return np.abs(np.sum(roi[1:,1:]*operator_first))+np.abs(np.sum(roi[1:,1:]*operator_second))
+def RobertsAlogrithm(image):
+    image = cv2.copyMakeBorder(image,1,1,1,1,cv2.BORDER_DEFAULT)
+    for i in range(1,image.shape[0]):
+        for j in range(1,image.shape[1]):
+            image[i,j] = RobertsOperator(image[i-1:i+2,j-1:j+2])
+    return image[1:image.shape[0],1:image.shape[1]]
+</code></pre>
+<pre><code class="language-python">Robert_saber = RobertsAlogrithm(gray_saber)
+</code></pre>
+<pre><code class="language-python">plt.imshow(Robert_saber,cmap=&quot;binary&quot;)
+plt.axis(&quot;off&quot;)
+plt.show()
+</code></pre>
+<p><img src="https://lynskylate.github.io/images/7881300/02.png" alt=""></p>
+<blockquote>
+<p>python的在这种纯计算方面实在有些慢，当然这也是因为我过多的使用了for循环而没有利用好numpy的原因</p>
+</blockquote>
+<p>我们可以看出Roberts算子在检测边缘效果已经相当不错了，但是它对噪声相当敏感，我们给它加上噪声在看看它的效果<br>
+噪声代码来源于<a href="https://stackoverflow.com/questions/22937589/how-to-add-noise-gaussian-salt-and-pepper-etc-to-image-in-python-with-opencv">stacksoverflow</a></p>
+<pre><code class="language-python">def noisy(noise_typ,image):
+    if noise_typ == &quot;gauss&quot;:
+        row,col,ch= image.shape
+        mean = 0
+        var = 0.1
+        sigma = var**0.5
+        gauss = np.random.normal(mean,sigma,(row,col,ch))
+        gauss = gauss.reshape(row,col,ch)
+        noisy = image + gauss
+        return noisy
+    elif noise_typ == &quot;s&amp;p&quot;:
+        row,col,ch = image.shape
+        s_vs_p = 0.5
+        amount = 0.004
+        out = np.copy(image)
+        num_salt = np.ceil(amount * image.size * s_vs_p)
+        coords = [np.random.randint(0, i - 1, int(num_salt))
+              for i in image.shape]
+        out[coords] = 1
+        num_pepper = np.ceil(amount* image.size * (1. - s_vs_p))
+        coords = [np.random.randint(0, i - 1, int(num_pepper)) for i in image.shape]
+        out[coords] = 0
+        return out
+    elif noise_typ == &quot;poisson&quot;:
+        vals = len(np.unique(image))
+        vals = 2 ** np.ceil(np.log2(vals))
+        noisy = np.random.poisson(image * vals) / float(vals)
+        return noisy
+    elif noise_typ ==&quot;speckle&quot;:
+        row,col,ch = image.shape
+        gauss = np.random.randn(row,col,ch)
+        gauss = gauss.reshape(row,col,ch)        
+        noisy = image + image * gauss
+        return noisy
+</code></pre>
+<pre><code class="language-python">dst = noisy(&quot;s&amp;p&quot;,saber)
+plt.subplot(121)
+plt.title(&quot;add noise&quot;)
+plt.axis(&quot;off&quot;)
+plt.imshow(dst)
+plt.subplot(122)
+dst = cv2.cvtColor(dst,cv2.COLOR_RGB2GRAY)
+plt.title(&quot;Robert Process&quot;)
+plt.axis(&quot;off&quot;)
+dst = RobertsAlogrithm(dst)
+plt.imshow(dst,cmap=&quot;binary&quot;)
+plt.show()
+</code></pre>
+<p><img src="https://lynskylate.github.io/images/7881300/03.png" alt=""></p>
+<p>这里我们可以看出Robert算子对于噪声过于敏感,在加了噪声后,人的边缘变得非常不清晰</p>
+<h2 id="prewitt算子">Prewitt算子</h2>
+<p>Prewitt算子是一种$3\times3$模板的算子,它有两种形式,分别表示水平和垂直的梯度.</p>
+<p>垂直梯度</p>
+<p>$$ \begin{bmatrix}
+-1 &amp; -1 &amp; -1 \\
+0 &amp; 0 &amp; 0 \\
+1 &amp; 1 &amp; 1 \\
+\end{bmatrix}
+$$</p>
+<p>水平梯度</p>
+<p>$$ \begin{bmatrix}
+-1 &amp; 0 &amp; 1 \\
+-1 &amp; 0 &amp; 1 \\
+-1 &amp; 0 &amp; 1 \\
+\end{bmatrix}
+$$</p>
+<p>对于如图的矩阵起始值</p>
+<p>$$ \begin{bmatrix}
+Z_1 &amp; Z_2 &amp; Z_3 \\
+Z_4 &amp; Z_5 &amp; Z_6 \\
+Z_7 &amp; Z_8 &amp; Z_9 \\
+\end{bmatrix}
+$$</p>
+<p>就是以下两个式子</p>
+<p>$$|(z_7+z_8+z_9)-(z_1+z_2+z_3)|
+$$</p>
+<p>$$|(z_1+z_4+z_7)-(z_3+z_6+z_9)|
+$$</p>
+<p>1与-1更换位置对结果并不会产生影响</p>
+<pre><code class="language-python">def PreWittOperator(roi,operator_type):
+    if operator_type == &quot;horizontal&quot;:
+        prewitt_operator = np.array([[-1,-1,-1],[0,0,0],[1,1,1]])
+    elif operator_type == &quot;vertical&quot;:
+        prewitt_operator = np.array([[-1,0,1],[-1,0,1],[-1,0,1]])
+    else:
+        raise(&quot;type Error&quot;)
+    result = np.abs(np.sum(roi*prewitt_operator))
+    return result
+    
+def PreWittAlogrithm(image,operator_type):
+    new_image = np.zeros(image.shape)
+    image = cv2.copyMakeBorder(image,1,1,1,1,cv2.BORDER_DEFAULT)
+    for i in range(1,image.shape[0]-1):
+        for j in range(1,image.shape[1]-1):
+            new_image[i-1,j-1] = PreWittOperator(image[i-1:i+2,j-1:j+2],operator_type)
+    new_image = new_image*(255/np.max(image))
+    return new_image.astype(np.uint8)
+</code></pre>
+<p>在PreWitt算子执行中要考虑大于255的情况,使用下面代码</p>
+<pre><code class="language-python">    new_image = new_image*(255/np.max(image))
+</code></pre>
+<p>将其放缩到0-255之间,并使用astype将其转换到uint8类型</p>
+<pre><code class="language-python">plt.subplot(121)
+plt.title(&quot;horizontal&quot;)
+plt.imshow(PreWittAlogrithm(gray_saber,&quot;horizontal&quot;),cmap=&quot;binary&quot;)
+plt.axis(&quot;off&quot;)
+plt.subplot(122)
+plt.title(&quot;vertical&quot;)
+plt.imshow(PreWittAlogrithm(gray_saber,&quot;vertical&quot;),cmap=&quot;binary&quot;)
+plt.axis(&quot;off&quot;)
+plt.show()
+</code></pre>
+<p><img src="https://lynskylate.github.io/images/7881300/04.png" alt=""></p>
+<p>现在我们看一下Prewitt对噪声的敏感性</p>
+<pre><code class="language-python">dst = noisy(&quot;s&amp;p&quot;,saber)
+plt.subplot(131)
+plt.title(&quot;add noise&quot;)
+plt.axis(&quot;off&quot;)
+plt.imshow(dst)
+
+plt.subplot(132)
+plt.title(&quot;Prewitt Process horizontal&quot;)
+plt.axis(&quot;off&quot;)
+plt.imshow(PreWittAlogrithm(gray_saber,&quot;horizontal&quot;),cmap=&quot;binary&quot;)
+
+plt.subplot(133)
+plt.title(&quot;Prewitt Process vertical&quot;)
+plt.axis(&quot;off&quot;)
+plt.imshow(PreWittAlogrithm(gray_saber,&quot;vertical&quot;),cmap=&quot;binary&quot;)
+plt.show()
+</code></pre>
+<p><img src="https://lynskylate.github.io/images/7881300/05.png" alt=""></p>
+<p>选择水平梯度或垂直梯度从上图可以看出对于边缘的影响还是相当大的.</p>
+<h2 id="sobel算子">Sobel算子</h2>
+<p>Sobel算子根据像素点上下、左右邻点灰度加权差，在边缘处达到极值这一现象检测边缘。对噪声具有平滑作用，提供较为精确的边缘方向信息，边缘定位精度不够高。当对精度要求不是很高时，是一种较为常用的边缘检测方法。相比Prewitt他周边像素对于判断边缘的贡献是不同的.<br>
+垂直梯度</p>
+<p>$$ \begin{bmatrix}
+-1 &amp; -2 &amp; -1 \\
+0 &amp; 0 &amp; 0 \\
+1 &amp; 2 &amp; 1 \\
+\end{bmatrix}
+$$</p>
+<p>水平梯度</p>
+<p>$$ \begin{bmatrix}
+-1 &amp; 0 &amp; 1 \\
+-2 &amp; 0 &amp; 2 \\
+-1 &amp; 0 &amp; 1 \\
+\end{bmatrix}
+$$</p>
+<p>对上面的代码稍微修改算子即可</p>
+<pre><code class="language-python">def SobelOperator(roi,operator_type):
+    if operator_type == &quot;horizontal&quot;:
+        sobel_operator = np.array([[-1,-2,-1],[0,0,0],[1,2,1]])
+    elif operator_type == &quot;vertical&quot;:
+        sobel_operator = np.array([[-1,0,1],[-2,0,2],[-1,0,1]])
+    else:
+        raise(&quot;type Error&quot;)
+    result = np.abs(np.sum(roi*sobel_operator))
+    return result
+    
+def SobelAlogrithm(image,operator_type):
+    new_image = np.zeros(image.shape)
+    image = cv2.copyMakeBorder(image,1,1,1,1,cv2.BORDER_DEFAULT)
+    for i in range(1,image.shape[0]-1):
+        for j in range(1,image.shape[1]-1):
+            new_image[i-1,j-1] = SobelOperator(image[i-1:i+2,j-1:j+2],operator_type)
+    new_image = new_image*(255/np.max(image))
+    return new_image.astype(np.uint8)
+</code></pre>
+<pre><code class="language-python">plt.subplot(121)
+plt.title(&quot;horizontal&quot;)
+plt.imshow(SobelAlogrithm(gray_saber,&quot;horizontal&quot;),cmap=&quot;binary&quot;)
+plt.axis(&quot;off&quot;)
+plt.subplot(122)
+plt.title(&quot;vertical&quot;)
+plt.imshow(SobelAlogrithm(gray_saber,&quot;vertical&quot;),cmap=&quot;binary&quot;)
+plt.axis(&quot;off&quot;)
+plt.show()
+</code></pre>
+<p><img src="https://lynskylate.github.io/images/7881300/06.png" alt=""></p>
+<p>无论是Sobel还是Prewitt其实是求了单个方向颜色变化的极值</p>
+<p>在某个方向上颜色的变化如图(此图来源于opencv官方文档)<br>
+<img src="http://www.opencv.org.cn/opencvdoc/2.3.2/html/_images/Sobel_Derivatives_Tutorial_Theory_Intensity_Function.jpg" alt=""></p>
+<p>对其求导可以得到这样一条曲线<br>
+<img src="http://www.opencv.org.cn/opencvdoc/2.3.2/html/_images/Sobel_Derivatives_Tutorial_Theory_dIntensity_Function.jpg" alt=""></p>
+<p>由此我们可以得知边缘可以通过定位梯度值大于邻域的相素的方法找到(或者推广到大于一个阀值).<br>
+而Sobel就是利用了这一定理</p>
+<h2 id="laplace算子">Laplace算子</h2>
+<p>无论是Sobel还是Prewitt都是求单方向上颜色变化的一阶导(Sobel相比Prewitt增加了权重),那么如何才能反映空间上的颜色变化的一个极值呢?<br>
+<img src="http://www.opencv.org.cn/opencvdoc/2.3.2/html/_images/Laplace_Operator_Tutorial_Theory_Previous.jpg" alt=""><br>
+我们试着在对边缘求一次导<br>
+<img src="http://www.opencv.org.cn/opencvdoc/2.3.2/html/_images/Laplace_Operator_Tutorial_Theory_ddIntensity.jpg" alt=""><br>
+在一阶导数的极值位置，二阶导数为0。所以我们也可以用这个特点来作为检测图像边缘的方法。 但是， 二阶导数的0值不仅仅出现在边缘(它们也可能出现在无意义的位置),但是我们可以过滤掉这些点。<br>
+在实际情况中我们不可能用0作为判断条件,而是设定一个阈值,这就引出来Laplace算子<br>
+\begin{bmatrix}<br>
+0 &amp; 1 &amp; 0 \<br>
+1 &amp; -4 &amp; 1 \<br>
+0 &amp; 1 &amp; 0 \<br>
+\end{bmatrix}</p>
+<p>\begin{bmatrix}<br>
+1 &amp; 1 &amp; 1 \<br>
+1 &amp; -8 &amp; 1 \<br>
+1 &amp; 1 &amp; 1 \<br>
+\end{bmatrix}</p>
+<pre><code class="language-python">def LaplaceOperator(roi,operator_type):
+    if operator_type == &quot;fourfields&quot;:
+        laplace_operator = np.array([[0,1,0],[1,-4,1],[0,1,0]])
+    elif operator_type == &quot;eightfields&quot;:
+        laplace_operator = np.array([[1,1,1],[1,-8,1],[1,1,1]])
+    else:
+        raise(&quot;type Error&quot;)
+    result = np.abs(np.sum(roi*laplace_operator))
+    return result
+    
+def LaplaceAlogrithm(image,operator_type):
+    new_image = np.zeros(image.shape)
+    image = cv2.copyMakeBorder(image,1,1,1,1,cv2.BORDER_DEFAULT)
+    for i in range(1,image.shape[0]-1):
+        for j in range(1,image.shape[1]-1):
+            new_image[i-1,j-1] = LaplaceOperator(image[i-1:i+2,j-1:j+2],operator_type)
+    new_image = new_image*(255/np.max(image))
+    return new_image.astype(np.uint8)
+</code></pre>
+<pre><code class="language-python">plt.subplot(121)
+plt.title(&quot;fourfields&quot;)
+plt.imshow(LaplaceAlogrithm(gray_saber,&quot;fourfields&quot;),cmap=&quot;binary&quot;)
+plt.axis(&quot;off&quot;)
+plt.subplot(122)
+plt.title(&quot;eightfields&quot;)
+plt.imshow(LaplaceAlogrithm(gray_saber,&quot;eightfields&quot;),cmap=&quot;binary&quot;)
+plt.axis(&quot;off&quot;)
+plt.show()
+</code></pre>
+<p><img src="https://lynskylate.github.io/images/7881300/07.png" alt=""></p>
+<p>上图为比较取值不同的laplace算子实现的区别.</p>
+<h2 id="canny算子">Canny算子</h2>
+<blockquote>
+<p>Canny边缘检测算子是一种多级检测算法。1986年由John F. Canny提出，同时提出了边缘检测的三大准则：</p>
+<ul>
+<li>低错误率的边缘检测：检测算法应该精确地找到图像中的尽可能多的边缘，尽可能的减少漏检和误检。</li>
+<li>最优定位：检测的边缘点应该精确地定位于边缘的中心。</li>
+<li>图像中的任意边缘应该只被标记一次，同时图像噪声不应产生伪边缘。</li>
+</ul>
+</blockquote>
+<p>Canny边缘检测算法的实现较为复杂,主要分为以下步骤,</p>
+<ol>
+<li>高斯模糊</li>
+<li>计算梯度幅值和方向</li>
+<li>非极大值 抑制</li>
+<li>滞后阈值</li>
+</ol>
+<h3 id="高斯模糊">高斯模糊</h3>
+<p>在前面的章节中已经实现过均值模糊,模糊在图像处理中经常用来去除一些无关的细节.</p>
+<p>均值模糊引出了另一个思考,周边每个像素点的权重设为一样是否合适?<br>
+(周边像素点的权重是很多算法的区别,比如Sobel和Prewitt)</p>
+<p>因此概率中非常熟悉的正态分布函数便被引入.正太分布函数的密度函数就是高斯函数,使用高斯函数来给周边像素点分配权重.</p>
+<p>更详细的可以参考<a href="http://www.ruanyifeng.com/blog/2012/11/gaussian_blur.html">高斯模糊的算法</a></p>
+<p>在opencv的官方文档中它介绍了这样一个$5\times5$的高斯算子<br>
+<img src="http://www.opencv.org.cn/opencvdoc/2.3.2/html/_images/math/9841c2d807e9373faf09982b6421871b6b501548.png" alt=""><br>
+相比直接的使用密度函数来分配权重,Opencv介绍的高斯算子是各像素点乘以一个大于1的比重,最后乘以一个$1 \frac {159}$,其实就是归一化的密度函数.这有效避免了计算机计算的精度问题<br>
+<img src="http://image.beekka.com/blog/201211/bg2012111411.png" alt=""><br>
+我们在此处直接使用$3\times3$的算子</p>
+<p><img src="https://i.stack.imgur.com/YAEQR.png" alt=""></p>
+<p>我们将其归一化然后代入上面的代码即可</p>
+<pre><code class="language-python">def GaussianOperator(roi):
+    GaussianKernel = np.array([[1,2,1],[2,4,2],[1,2,1]])
+    result = np.sum(roi*GaussianKernel/16)
+    return result
+
+def GaussianSmooth(image):
+    new_image = np.zeros(image.shape)
+    image = cv2.copyMakeBorder(image,1,1,1,1,cv2.BORDER_DEFAULT)
+    for i in range(1,image.shape[0]-1):
+        for j in range(1,image.shape[1]-1):
+            new_image[i-1,j-1] =GaussianOperator(image[i-1:i+2,j-1:j+2])
+    return new_image.astype(np.uint8)
+</code></pre>
+<pre><code class="language-python">smooth_saber = GaussianSmooth(gray_saber)
+plt.subplot(121)
+plt.title(&quot;Origin Image&quot;)
+plt.axis(&quot;off&quot;)
+plt.imshow(gray_saber,cmap=&quot;gray&quot;)
+plt.subplot(122)
+plt.title(&quot;GaussianSmooth Image&quot;)
+plt.axis(&quot;off&quot;)
+plt.imshow(smooth_saber,cmap=&quot;gray&quot;)
+plt.show()
+</code></pre>
+<p><img src="https://lynskylate.github.io/images/7881300/08.png" alt=""></p>
+<h3 id="计算梯度幅值和方向">计算梯度幅值和方向</h3>
+<p>我们知道边缘实质是颜色变换的极值,可能出现在各个方向上,因此能否在计算时考虑多个方向的梯度,是算法效果优异的体现之一</p>
+<p>在之前的Sobel等算子中我们将水平和垂直方向是分开考虑的.在Canny算子中利用下面公式将多个方向都考虑到<br>
+<img src="https://lynskylate.github.io/images/7881300/09.jpg" alt=""></p>
+<pre><code class="language-python">Gx = SobelAlogrithm(smooth_saber,&quot;horizontal&quot;)
+Gy = SobelAlogrithm(smooth_saber,&quot;vertical&quot;)
+</code></pre>
+<pre><code class="language-python">G = np.sqrt(np.square(Gx.astype(np.float64))+np.square(Gy.astype(np.float64)))
+cita = np.arctan2(Gy.astype(np.float64),Gx.astype(np.float64))
+</code></pre>
+<p>cita求出了图像每一个点的梯度,在之后的非极大值抑制中会有作用</p>
+<pre><code class="language-python">plt.imshow(G.astype(np.uint8),cmap=&quot;gray&quot;)
+plt.axis(&quot;off&quot;)
+plt.show()
+</code></pre>
+<p><img src="https://lynskylate.github.io/images/7881300/10.png" alt=""></p>
+<p>我们发现对于图像使用sobel算子使得获得的边缘较粗,下一步我们将使图像的线条变细</p>
+<h3 id="非最大值抑制">非最大值抑制</h3>
+<blockquote>
+<p>在获得梯度的方向和大小之后，应该对整幅图想做一个扫描，出去那些非边界上的点。对每一个像素进行检查，看这个点的梯度是不是周围具有相同梯度方向的点中最大的。<br>
+<img src="https://box.kancloud.cn/c305bf90bc57de0983e29e6da633df0c_662x246.jpg" alt=""><br>
+(图像来源于opencv官方文档)</p>
+</blockquote>
+<p>非极大值的算法实现非常简单</p>
+<ul>
+<li>比较当前点的梯度强度和正负梯度方向点的梯度强度。</li>
+<li>如果当前点的梯度强度和同方向的其他点的梯度强度相比较是最大，保留其值。否则抑制，即设为0。比如当前点的方向指向正上方90°方向，那它需要和垂直方向，它的正上方和正下方的像素比较。</li>
+</ul>
+<pre><code class="language-python">def NonmaximumSuppression(image,cita):
+    keep = np.zeros(cita.shape)
+    cita = np.abs(cv2.copyMakeBorder(cita,1,1,1,1,cv2.BORDER_DEFAULT))
+    for i in range(1,cita.shape[0]-1):
+        for j in range(1,cita.shape[1]-1):
+            if cita[i][j]&gt;cita[i-1][j] and cita[i][j]&gt;cita[i+1][j]:
+                keep[i-1][j-1] = 1
+            elif cita[i][j]&gt;cita[i][j+1] and cita[i][j]&gt;cita[i][j-1]:
+                keep[i-1][j-1] = 1
+            elif cita[i][j]&gt;cita[i+1][j+1] and cita[i][j]&gt;cita[i-1][j-1]:
+                keep[i-1][j-1] = 1
+            elif cita[i][j]&gt;cita[i-1][j+1] and cita[i][j]&gt;cita[i+1][j-1]:
+                keep[i-1][j-1] = 1
+            else:
+                keep[i-1][j-1] = 0
+    return keep*image
+</code></pre>
+<p>这里的代码我们先创建了一个keep矩阵,凡是在cita中梯度大于周边的点设为1,否则设为0,然后与原图相乘.(这是我想得比较巧妙的一个方法)</p>
+<pre><code class="language-python">nms_image = NonmaximumSuppression(G,cita)
+nms_image = (nms_image*(255/np.max(nms_image))).astype(np.uint8)
+</code></pre>
+<pre><code class="language-python">plt.imshow(nms_image,cmap=&quot;gray&quot;)
+plt.axis(&quot;off&quot;)
+plt.show()
+</code></pre>
+<p><img src="https://lynskylate.github.io/images/7881300/11.png" alt=""></p>
+<p>在上面的极大值抑制中我们使边缘的线变得非常细,但是仍然有相当多的小点,得使用一种算法将他们去除</p>
+<h3 id="滞后阈值">滞后阈值</h3>
+<p>滞后阈值的算法如下<br>
+Canny 使用了滞后阈值，滞后阈值需要两个阈值(高阈值和低阈值):</p>
+<ul>
+<li>如果某一像素位置的幅值超过 高 阈值, 该像素被保留为边缘像素。</li>
+<li>如果某一像素位置的幅值小于 低 阈值, 该像素被排除。</li>
+<li>如果某一像素位置的幅值在两个阈值之间,该像素仅仅在连接到一个高于 高 阈值的像素时被保留。</li>
+</ul>
+<p>在opencv官方文档中推荐我们用2:1或3:1的高低阈值.</p>
+<p>我们使用3:1的阈值来进行滞后阈值算法.</p>
+<p>滞后阈值的算法可以分成两步首先使用最大阈值,最小阈值排除掉部分点.</p>
+<pre><code class="language-python">MAXThreshold = np.max(nms_image)/4*3
+MINThreshold = np.max(nms_image)/4
+usemap = np.zeros(nms_image.shape)
+high_list = []
+</code></pre>
+<pre><code class="language-python">for i in range(nms_image.shape[0]):
+    for j in range(nms_image.shape[1]):
+        if nms_image[i,j]&gt;MAXThreshold:
+            high_list.append((i,j))
+</code></pre>
+<pre><code class="language-python">direct = [(0,1),(1,1),(-1,1),(-1,-1),(1,-1),(1,0),(-1,0),(0,-1)]
+def DFS(stepmap,start):
+    route = [start]
+    while route:
+        now = route.pop()
+        if usemap[now] == 1:
+            break
+        usemap[now] = 1
+        for dic in direct:
+            next_coodinate = (now[0]+dic[0],now[1]+dic[1])
+            if not usemap[next_coodinate] and nms_image[next_coodinate]&gt;MINThreshold \
+            and next_coodinate[0]&lt;stepmap.shape[0]-1 and next_coodinate[0]&gt;=0 \
+            and next_coodinate[1]&lt;stepmap.shape[1]-1 and next_coodinate[1]&gt;=0:
+                route.append(next_coodinate)
+</code></pre>
+<pre><code class="language-python">for i in high_list:
+    DFS(nms_image,i)
+</code></pre>
+<pre><code class="language-python">plt.imshow(nms_image*usemap,cmap=&quot;gray&quot;)
+plt.axis(&quot;off&quot;)
+plt.show()
+</code></pre>
+<p><img src="https://lynskylate.github.io/images/7881300/12.png" alt=""></p>
+<p>可以发现这次的效果并不好,这是由于最大最小阈值设定不是很好导致的,我们将上面代码整理,将最大阈值,最小阈值改为可变参数,调参来优化效果.</p>
+<h3 id="canny边缘检测代码">Canny边缘检测代码</h3>
+<pre><code class="language-python">def CannyAlogrithm(image,MINThreshold,MAXThreshold):
+    image = GaussianSmooth(image)
+    Gx = SobelAlogrithm(image,&quot;horizontal&quot;)
+    Gy = SobelAlogrithm(image,&quot;vertical&quot;)
+    G = np.sqrt(np.square(Gx.astype(np.float64))+np.square(Gy.astype(np.float64)))
+    G = G*(255/np.max(G)).astype(np.uint8)
+    cita = np.arctan2(Gy.astype(np.float64),Gx.astype(np.float64))
+    nms_image = NonmaximumSuppression(G,cita)
+    nms_image = (nms_image*(255/np.max(nms_image))).astype(np.uint8)
+    usemap = np.zeros(nms_image.shape)
+    high_list = []
+    for i in range(nms_image.shape[0]):
+        for j in range(nms_image.shape[1]):
+            if nms_image[i,j]&gt;MAXThreshold:
+                high_list.append((i,j))
+                
+    direct = [(0,1),(1,1),(-1,1),(-1,-1),(1,-1),(1,0),(-1,0),(0,-1)]
+    def DFS(stepmap,start):
+        route = [start]
+        while route:
+            now = route.pop()
+            if usemap[now] == 1:
+                break
+            usemap[now] = 1
+            for dic in direct:
+                next_coodinate = (now[0]+dic[0],now[1]+dic[1])
+                if next_coodinate[0]&lt;stepmap.shape[0]-1 and next_coodinate[0]&gt;=0 \
+                and next_coodinate[1]&lt;stepmap.shape[1]-1 and next_coodinate[1]&gt;=0 \
+                and not usemap[next_coodinate] and nms_image[next_coodinate]&gt;MINThreshold:
+                    route.append(next_coodinate)
+    for i in high_list:
+        DFS(nms_image,i)
+    return nms_image*usemap
+</code></pre>
+<p>我们试着调整阈值,来对其他图片进行检测</p>
+<p><img src="https://lynskylate.github.io/images/7881300/13.png" alt=""></p>
+<p><img src="https://lynskylate.github.io/images/7881300/14.png" alt=""></p>
+<p>通过调整阈值可以减少毛点的存在,控制线的清晰</p>
+<p>(PS:在使用canny过程中为了减少python运算的时间,我将图片进行了缩放,这也导致了效果不够明显,canny边缘检测在高分辨率情况下效果会更好)</p>
+<h2 id="参考资料">参考资料</h2>
+<p><a href="http://www.opencv.org.cn/opencvdoc/2.3.2/">Opencv文档</a><br>
+<a href="https://stackoverflow.com/questions/22937589/how-to-add-noise-gaussian-salt-and-pepper-etc-to-image-in-python-with-opencv">stackoverflow</a><br>
+Numpy设计的是如此出色,以至于在实现算法时我能够忽略如此之多无关的细节</p>
+
+    </section> 
+    
+    
+     
+  </article>
+  
+<div class="share-card">
+    <a class="twitter" href="https://twitter.com/intent/tweet?text=https%3a%2f%2flynskylate.github.io%2fpost%2f7881300%2f - python%e6%95%b0%e5%ad%97%e5%9b%be%e5%83%8f%e5%a4%84%e7%90%86%ef%bc%88%e4%b8%89%ef%bc%89%e8%be%b9%e7%bc%98%e6%a3%80%e6%b5%8b%e5%b8%b8%e7%94%a8%e7%ae%97%e5%ad%90 "><i class="fa fa-twitter"></i> Tweet</a>
+
+    <a class="facebook" href="#" onclick="
+        window.open(
+          'https://www.facebook.com/sharer/sharer.php?u='+encodeURIComponent(location.href),
+          'facebook-share-dialog',
+          'width=626,height=436');
+        return false;"><i class="fa fa-facebook"></i> Share
+    </a>
+</div>
+
+
+ 
+  
+  
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+
+(function() {
+    
+    
+    if (window.location.hostname == "localhost")
+        return;
+
+    var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+    var disqus_shortname = 'lynskylate';
+    dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+    (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+})();
+</script>
+<noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="http://disqus.com/" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+        </main>
+        
+        <aside class="desktop-only">
+            
+	<div class="widgets">
+  <section itemscope itemtype="https://schema.org/Person" class="widget socials">
+    <a href="https://lynskylate.github.io/about"><h2 class="widget-title">关于咸鱼博主</h2></a>
+    <div class="author-card" itemscope itemprop="author" itemtype="https://schema.org/Person">
+      <div class="author-dp">
+        <img itemprop='image' src="https://lynskylate.github.io/images/xiaomai.jpg" alt=".Site.Param.name" />
+      </div>
+      <div class="author-bio">
+        
+        <h4 class="author-title">
+          lynskylate <span itemprop="name"></span>
+        </h4>
+        
+        
+        <div class="author-description" itemprop="description">
+          Life is short, code lasts forever.
+        </div>
+        
+      </div>
+    </div>
+    <h2 class="widget-title">联系我</h2>
+    <ul>
+      
+      
+      
+      
+      <li><a href="https://github.com/lynskylate"><i class="fa fa-github"></i></a></li>
+      
+      
+      <li><a href="mailto://lynskylate@gmail.com"><i class="fa fa-envelope"></i></a></li>
+      
+    </ul>
+  </section>
+
+  
+
+</div>
+
+
+            <footer id="footer">
+    <p class="small">
+      Copyright © 2019, lynskylate; all rights reserved.
+    </p>
+</footer>
+        </aside>
+    </div>
+    
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+<script src="https://lynskylate.github.io/js/main.js"></script>
+<script src="https://lynskylate.github.io/js/highlight.js"></script>
+<script>hljs.initHighlightingOnLoad();</script>
+
+
+
+
+
+</body>
+</html>

@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+	<head>
+    <meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<base href="https://lynskylate.github.io/">
+<meta name="author" content="lynskylate">
+
+<meta name="generator" content="Hugo 0.161.1">
+<title>Jade To Pug过程中的一个小问题</title>
+<link rel="shortcut icon" href="https://lynskylate.github.io/images/favicon.ico" type="">
+<link rel="stylesheet" href="https://lynskylate.github.io/css/style.css">
+<link rel="stylesheet" href="https://lynskylate.github.io/css/highlight.css">
+
+
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/latest/css/font-awesome.min.css">
+
+
+
+
+
+
+
+<meta property="og:title" content="Jade To Pug过程中的一个小问题">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://lynskylate.github.io/">
+
+
+  <meta property="og:image" content="https://lynskylate.github.io//images/onepress-logo.jpg">
+
+
+
+
+<link rel="canonical" href="https://lynskylate.github.io/post/8148492/">
+
+
+
+    </head>
+<body>
+	  <header class="header">
+			<img src="https://lynskylate.github.io/images/xiaomai.jpg" alt="">
+
+		</header>
+    <nav class="main-nav">
+        <ul>
+    <li><a href='https://lynskylate.github.io/'>Articles</a></li>
+    <li><a href='https://lynskylate.github.io/about'>About</a></li>
+    <li><a href='https://lynskylate.github.io/tags'>Tags</a></li>
+    
+        <li><a href="https://lynskylate.github.io/index.xml" target="blank">Subscribe</a></li>
+    
+</ul>
+
+    </nav>
+    
+    
+    
+    <div id="site-wrapper">
+        <main>
+            
+  <article class="single">
+    <h1>Jade To Pug过程中的一个小问题</h1>
+    <section class="extras">
+        <span class="tags">
+          <small class="time">December 30, 2017</small>
+          
+        </span>
+    </section>
+    <section class="description">
+      
+    </section>
+    
+    <section id="content" class="body">
+        <p>最近在使用jade+express+typescript搭建一个博客项目，在使用jade-bootstrap项目时出现了一个问题<br>
+在使用其中的carousel时，发现其中的变量并没有转义</p>
+<pre><code class="language-javscript">+carousel(&quot;157&quot;,[
+	            {image:&quot;images/bgimage.jpg&quot;,h1:&quot;Headline #1&quot;,p:&quot;Carousel Caption #1&quot;,button:{caption:&quot;Sign up today&quot;,url:&quot;#&quot;}},
+	            {image:&quot;images/bgimage.jpg&quot;,h1:&quot;Headline #2&quot;,p:&quot;Carousel Caption #2&quot;,button:{caption:&quot;Sign up today&quot;,url:&quot;#&quot;}},
+	            {image:&quot;images/bgimage.jpg&quot;,h1:&quot;Headline #3&quot;,p:&quot;Carousel Caption #3&quot;,button:{caption:&quot;Sign up today&quot;,url:&quot;#&quot;}},
+	            {image:&quot;images/bgimage.jpg&quot;,h1:&quot;Headline #4&quot;,p:&quot;Carousel Caption #4&quot;,button:{caption:&quot;Sign up today&quot;,url:&quot;#&quot;}}
+            ])
+</code></pre>
+<p>结果是</p>
+<pre><code class="language-html">&lt;div class=&quot;carousel slide&quot; id=&quot;carousel-#{id}&quot; data-ride=&quot;carousel&quot;&gt;
+&lt;ol class=&quot;carousel-indicators&quot;&gt;
+&lt;li class=&quot;&quot; data-target=&quot;#carousel-#{id}&quot; data-slide-to=&quot;#{index}&quot;&gt;&lt;/li&gt;
+&lt;li data-target=&quot;#carousel-#{id}&quot; data-slide-to=&quot;#{index}&quot; class=&quot;&quot;&gt;&lt;/li&gt;
+&lt;li data-target=&quot;#carousel-#{id}&quot; data-slide-to=&quot;#{index}&quot; class=&quot;&quot;&gt;&lt;/li&gt;
+&lt;li data-target=&quot;#carousel-#{id}&quot; data-slide-to=&quot;#{index}&quot; class=&quot;active&quot;&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;div class=&quot;carousel-inner&quot; role=&quot;listbox&quot;&gt;
+&lt;div class=&quot;item&quot;&gt;&lt;img src=&quot;#{item.image}&quot;&gt;
+&lt;div class=&quot;carousel-caption&quot;&gt;
+&lt;h1&gt;Headline #1&lt;/h1&gt;
+&lt;p&gt;Carousel Caption #1&lt;/p&gt;
+&lt;p&gt;&lt;a class=&quot;btn btn-lg btn-primary&quot; href=&quot;#{item.button.url}&quot; role=&quot;button&quot;&gt;Sign up today&lt;/a&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class=&quot;item&quot;&gt;
+&lt;img src=&quot;#{item.image}&quot;&gt;
+&lt;div class=&quot;carousel-caption&quot;&gt;
+&lt;h1&gt;Headline #2&lt;/h1&gt;
+&lt;p&gt;Carousel Caption #2&lt;/p&gt;
+&lt;p&gt;&lt;a class=&quot;btn btn-lg btn-primary&quot; href=&quot;#{item.button.url}&quot; role=&quot;button&quot;&gt;Sign up today&lt;/a&gt;&lt;/p&gt;&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class=&quot;item&quot;&gt;
+&lt;img src=&quot;#{item.image}&quot;&gt;&lt;div class=&quot;carousel-caption&quot;&gt;&lt;h1&gt;Headline #3&lt;/h1&gt;&lt;p&gt;Carousel Caption #3&lt;/p&gt;&lt;p&gt;
+&lt;a class=&quot;btn btn-lg btn-primary&quot; href=&quot;#{item.button.url}&quot; role=&quot;button&quot;&gt;Sign up today&lt;/a&gt;&lt;/p&gt;&lt;/div&gt;&lt;/div&gt;&lt;div class=&quot;item active&quot;&gt;&lt;img src=&quot;#{item.image}&quot;&gt;&lt;div class=&quot;carousel-caption&quot;&gt;&lt;h1&gt;Headline #4&lt;/h1&gt;&lt;p&gt;Carousel Caption #4&lt;/p&gt;&lt;p&gt;
+&lt;a class=&quot;btn btn-lg btn-primary&quot; href=&quot;#{item.button.url}&quot; role=&quot;button&quot;&gt;Sign up today&lt;/a&gt;&lt;/p&gt;&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;a class=&quot;left carousel-control&quot; href=&quot;#carousel-#{id}&quot; role=&quot;button&quot; data-slide=&quot;prev&quot;&gt;&lt;span class=&quot;glyphicon glyphicon-chevron-left&quot; aria-hidden=&quot;true&quot;&gt;&lt;/span&gt;&lt;span class=&quot;sr-only&quot;&gt;Previous&lt;/span&gt;&lt;/a&gt;&lt;a class=&quot;right carousel-control&quot; href=&quot;#carousel-#{id}&quot; role=&quot;button&quot; data-slide=&quot;next&quot;&gt;&lt;span class=&quot;glyphicon glyphicon-chevron-right&quot; aria-hidden=&quot;true&quot;&gt;&lt;/span&gt;&lt;span class=&quot;sr-only&quot;&gt;Next&lt;/span&gt;&lt;/a&gt;&lt;/div&gt;
+</code></pre>
+<p>其中的a属性的#{item.image}原样输出，开启jade模版的debug也并没有报错。<br>
+pug其实就是jade的新版本，为了避免版权进行了修改，因此我一开始查阅的jade资料。<br>
+我在该库的issues中看见了一个很久的<a href="https://github.com/rajasegar/PUG-Bootstrap/issues/27">issue</a></p>
+<p>当然最后是在看pug的英文文档发现了错误，该库的源码在jade更新到pug后由于api的改变已经不能正确使用，需要进行修改。</p>
+<p>jade to pug <a href="https://pugjs.org/api/migration-v2.html#attribute-interpolation">迁移的文档</a></p>
+<p>另一个相关的<a href="https://github.com/pugjs/pug/issues/2757#issuecomment-285990989">issue</a></p>
+<p>唉，偷懒看中文文档确实没法保证时效性啊。修改了其中模版的代码后可以正确使用。</p>
+
+    </section> 
+    
+    
+     
+  </article>
+  
+<div class="share-card">
+    <a class="twitter" href="https://twitter.com/intent/tweet?text=https%3a%2f%2flynskylate.github.io%2fpost%2f8148492%2f - Jade%20To%20Pug%e8%bf%87%e7%a8%8b%e4%b8%ad%e7%9a%84%e4%b8%80%e4%b8%aa%e5%b0%8f%e9%97%ae%e9%a2%98 "><i class="fa fa-twitter"></i> Tweet</a>
+
+    <a class="facebook" href="#" onclick="
+        window.open(
+          'https://www.facebook.com/sharer/sharer.php?u='+encodeURIComponent(location.href),
+          'facebook-share-dialog',
+          'width=626,height=436');
+        return false;"><i class="fa fa-facebook"></i> Share
+    </a>
+</div>
+
+
+ 
+  
+  
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+
+(function() {
+    
+    
+    if (window.location.hostname == "localhost")
+        return;
+
+    var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+    var disqus_shortname = 'lynskylate';
+    dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+    (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+})();
+</script>
+<noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="http://disqus.com/" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+        </main>
+        
+        <aside class="desktop-only">
+            
+	<div class="widgets">
+  <section itemscope itemtype="https://schema.org/Person" class="widget socials">
+    <a href="https://lynskylate.github.io/about"><h2 class="widget-title">关于咸鱼博主</h2></a>
+    <div class="author-card" itemscope itemprop="author" itemtype="https://schema.org/Person">
+      <div class="author-dp">
+        <img itemprop='image' src="https://lynskylate.github.io/images/xiaomai.jpg" alt=".Site.Param.name" />
+      </div>
+      <div class="author-bio">
+        
+        <h4 class="author-title">
+          lynskylate <span itemprop="name"></span>
+        </h4>
+        
+        
+        <div class="author-description" itemprop="description">
+          Life is short, code lasts forever.
+        </div>
+        
+      </div>
+    </div>
+    <h2 class="widget-title">联系我</h2>
+    <ul>
+      
+      
+      
+      
+      <li><a href="https://github.com/lynskylate"><i class="fa fa-github"></i></a></li>
+      
+      
+      <li><a href="mailto://lynskylate@gmail.com"><i class="fa fa-envelope"></i></a></li>
+      
+    </ul>
+  </section>
+
+  
+
+</div>
+
+
+            <footer id="footer">
+    <p class="small">
+      Copyright © 2019, lynskylate; all rights reserved.
+    </p>
+</footer>
+        </aside>
+    </div>
+    
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+<script src="https://lynskylate.github.io/js/main.js"></script>
+<script src="https://lynskylate.github.io/js/highlight.js"></script>
+<script>hljs.initHighlightingOnLoad();</script>
+
+
+
+
+
+</body>
+</html>

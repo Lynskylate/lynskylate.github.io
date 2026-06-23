@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+	<head>
+    <meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<base href="https://lynskylate.github.io/">
+<meta name="author" content="lynskylate">
+
+<meta name="generator" content="Hugo 0.161.1">
+<title>flask开发问题小记</title>
+<link rel="shortcut icon" href="https://lynskylate.github.io/images/favicon.ico" type="">
+<link rel="stylesheet" href="https://lynskylate.github.io/css/style.css">
+<link rel="stylesheet" href="https://lynskylate.github.io/css/highlight.css">
+
+
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/latest/css/font-awesome.min.css">
+
+
+
+
+
+
+
+<meta property="og:title" content="flask开发问题小记">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://lynskylate.github.io/">
+
+
+  <meta property="og:image" content="https://lynskylate.github.io//images/onepress-logo.jpg">
+
+
+
+
+<link rel="canonical" href="https://lynskylate.github.io/post/7861203/">
+
+
+
+    </head>
+<body>
+	  <header class="header">
+			<img src="https://lynskylate.github.io/images/xiaomai.jpg" alt="">
+
+		</header>
+    <nav class="main-nav">
+        <ul>
+    <li><a href='https://lynskylate.github.io/'>Articles</a></li>
+    <li><a href='https://lynskylate.github.io/about'>About</a></li>
+    <li><a href='https://lynskylate.github.io/tags'>Tags</a></li>
+    
+        <li><a href="https://lynskylate.github.io/index.xml" target="blank">Subscribe</a></li>
+    
+</ul>
+
+    </nav>
+    
+    
+    
+    <div id="site-wrapper">
+        <main>
+            
+  <article class="single">
+    <h1>flask开发问题小记</h1>
+    <section class="extras">
+        <span class="tags">
+          <small class="time">November 19, 2017</small>
+          
+        </span>
+    </section>
+    <section class="description">
+      
+    </section>
+    
+    <section id="content" class="body">
+        <h2 id="前因">前因</h2>
+<p>最近在使用flask开发一个APP的后端时出现了一些小问题。我使用sqlalchemy建立了如下多对多关系：</p>
+<p>中间表</p>
+<pre><code class="language-python">user_manager_group = db.Table('manage_group',
+        db.Column('user_id', db.Integer,
+            db.ForeignKey('users.id')),
+        db.Column('group_id', db.Integer,
+            db.ForeignKey('groups.id'))
+        )
+</code></pre>
+<p>小组</p>
+<pre><code class="language-python">class Group(db.Model):
+    __tablename__ = 'groups'
+    id = db.Column(db.Integer, primary_key=True)
+    managers = db.relationship(
+        'User',
+        secondary=user_manager_group,
+        backref=db.backref('manage_groups', lazy='joined'),
+        lazy='dynamic')
+</code></pre>
+<p>用户</p>
+<pre><code class="language-python">class User(db.Model):
+    __tablename__ = 'users'
+    id = db.Column(db.Integer, primary_key=True)
+</code></pre>
+<p>App中用户与群组形成了一个多对多关系，一个用户可能是多个组的管理员，一个组也可能有多个管理员，在Android向我的接口发送删除时，出现了一个Bug</p>
+<pre><code class="language-python">sqlalchemy.orm.exc.StaleDataError: DELETE statement on table 'manage_group' expected to delete 1 row(s); Only 2 were matched. 
+</code></pre>
+<p>无法删除某个小组</p>
+<h2 id="排查">排查</h2>
+<p>在查找了许多资料后，终于发现了bug所在</p>
+<p>manage_group是user和group的中间表，</p>
+<pre><code class="language-sql">CREATE TABLE user_manager (
+        user_id INTEGER,
+        grouo_id INTEGER,
+        FOREIGN KEY(user_id) REFERENCES users (id),
+        FOREIGN KEY(group_id) REFERENCES groups (id)
+);
+</code></pre>
+<p>在Android端向我发送数据设定某个管理员时，我没有对数据进行验证，导致重复添加某一用户为某组的管理员。</p>
+<p>当(user_id,task_id)这个二元组重复时，sqlalchemy是无法删除group。</p>
+<h2 id="修复">修复</h2>
+<p>首先我给后端加上了判断，一旦用户已经是某组的管理员，则不添加，但是这还不够，</p>
+<p>(user_id,group_id)这个二元组应当是唯一的，因此我们应当给它添加unique约束</p>
+<p>代码如下</p>
+<pre><code class="language-python"> user_manager_group = db.Table('manage_group',                                                 
+         db.Column('user_id', db.Integer,                                                      
+            db.ForeignKey('users.id')),                                                       
+         db.Column('group_id', db.Integer,                                                     
+           db.ForeignKey('groups.id')),                                                      ：
+         db.UniqueConstraint(&quot;user_id&quot;,&quot;group_id&quot;,name=&quot;managegroup&quot;)                          
+       )  
+</code></pre>
+<p>但是使用flask-migrate迁移时出现了问题</p>
+<pre><code class="language-sql">sqlalchemy.exc.IntegrityError: (sqlite3.IntegrityError) UNIQUE constraint failed: _alembic_tmp_use
+r_task.user_id, _alembic_tmp_user_task.task_id [SQL: 'INSERT INTO _alembic_tmp_user_task (user_id,
+ task_id) SELECT user_task.user_id, user_task.task_id \nFROM user_task'] 
+</code></pre>
+<p>此时我们需要打开migrate下的env文件往其中添加如下配置</p>
+<pre><code class="language-python">render_as_batch=True,
+</code></pre>
+<p>添加后应为</p>
+<pre><code class="language-python">    context.configure(connection=connection,
+                      render_as_batch=True,
+                      target_metadata=target_metadata,
+                      process_revision_directives=process_revision_directives,
+                      **current_app.extensions['migrate'].configure_args)
+</code></pre>
+<p>此时执行flask db migrate即可</p>
+
+    </section> 
+    
+    
+     
+  </article>
+  
+<div class="share-card">
+    <a class="twitter" href="https://twitter.com/intent/tweet?text=https%3a%2f%2flynskylate.github.io%2fpost%2f7861203%2f - flask%e5%bc%80%e5%8f%91%e9%97%ae%e9%a2%98%e5%b0%8f%e8%ae%b0 "><i class="fa fa-twitter"></i> Tweet</a>
+
+    <a class="facebook" href="#" onclick="
+        window.open(
+          'https://www.facebook.com/sharer/sharer.php?u='+encodeURIComponent(location.href),
+          'facebook-share-dialog',
+          'width=626,height=436');
+        return false;"><i class="fa fa-facebook"></i> Share
+    </a>
+</div>
+
+
+ 
+  
+  
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+
+(function() {
+    
+    
+    if (window.location.hostname == "localhost")
+        return;
+
+    var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+    var disqus_shortname = 'lynskylate';
+    dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+    (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+})();
+</script>
+<noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="http://disqus.com/" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+        </main>
+        
+        <aside class="desktop-only">
+            
+	<div class="widgets">
+  <section itemscope itemtype="https://schema.org/Person" class="widget socials">
+    <a href="https://lynskylate.github.io/about"><h2 class="widget-title">关于咸鱼博主</h2></a>
+    <div class="author-card" itemscope itemprop="author" itemtype="https://schema.org/Person">
+      <div class="author-dp">
+        <img itemprop='image' src="https://lynskylate.github.io/images/xiaomai.jpg" alt=".Site.Param.name" />
+      </div>
+      <div class="author-bio">
+        
+        <h4 class="author-title">
+          lynskylate <span itemprop="name"></span>
+        </h4>
+        
+        
+        <div class="author-description" itemprop="description">
+          Life is short, code lasts forever.
+        </div>
+        
+      </div>
+    </div>
+    <h2 class="widget-title">联系我</h2>
+    <ul>
+      
+      
+      
+      
+      <li><a href="https://github.com/lynskylate"><i class="fa fa-github"></i></a></li>
+      
+      
+      <li><a href="mailto://lynskylate@gmail.com"><i class="fa fa-envelope"></i></a></li>
+      
+    </ul>
+  </section>
+
+  
+
+</div>
+
+
+            <footer id="footer">
+    <p class="small">
+      Copyright © 2019, lynskylate; all rights reserved.
+    </p>
+</footer>
+        </aside>
+    </div>
+    
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+<script src="https://lynskylate.github.io/js/main.js"></script>
+<script src="https://lynskylate.github.io/js/highlight.js"></script>
+<script>hljs.initHighlightingOnLoad();</script>
+
+
+
+
+
+</body>
+</html>

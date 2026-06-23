@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+	<head>
+    <meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<base href="https://lynskylate.github.io/">
+<meta name="author" content="lynskylate">
+
+<meta name="generator" content="Hugo 0.161.1">
+<title>使用python开启你的opencv之旅---图像的读入,存储</title>
+<link rel="shortcut icon" href="https://lynskylate.github.io/images/favicon.ico" type="">
+<link rel="stylesheet" href="https://lynskylate.github.io/css/style.css">
+<link rel="stylesheet" href="https://lynskylate.github.io/css/highlight.css">
+
+
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/latest/css/font-awesome.min.css">
+
+
+
+
+
+
+
+<meta property="og:title" content="使用python开启你的opencv之旅---图像的读入,存储">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://lynskylate.github.io/">
+
+
+  <meta property="og:image" content="https://lynskylate.github.io//images/7720045/01.png">
+
+
+
+
+<link rel="canonical" href="https://lynskylate.github.io/post/7720045/">
+
+
+
+    </head>
+<body>
+	  <header class="header">
+			<img src="https://lynskylate.github.io/images/xiaomai.jpg" alt="">
+
+		</header>
+    <nav class="main-nav">
+        <ul>
+    <li><a href='https://lynskylate.github.io/'>Articles</a></li>
+    <li><a href='https://lynskylate.github.io/about'>About</a></li>
+    <li><a href='https://lynskylate.github.io/tags'>Tags</a></li>
+    
+        <li><a href="https://lynskylate.github.io/index.xml" target="blank">Subscribe</a></li>
+    
+</ul>
+
+    </nav>
+    
+    
+    
+    <div id="site-wrapper">
+        <main>
+            
+  <article class="single">
+    <h1>使用python开启你的opencv之旅---图像的读入,存储</h1>
+    <section class="extras">
+        <span class="tags">
+          <small class="time">October 24, 2017</small>
+          
+        </span>
+    </section>
+    <section class="description">
+      
+    </section>
+    
+    <section class="featuredImage">
+        <img src="https://lynskylate.github.io/images/7720045/01.png" alt="使用python开启你的opencv之旅---图像的读入,存储">
+    </section>
+    
+    <section id="content" class="body">
+        <p>python的便捷是如此的引人着迷,而opencv给python提供的接口使我们能够使用python来快速验证我们的想法,或者与别的模块快速结合,在这个系列文章我会通过jupyter notebook来快速展示opencv的使用</p>
+<pre><code class="language-python">#在开头引入必要的库
+import matplotlib.pyplot as plt
+import numpy as np
+import cv2
+#ipython 
+%matplotlib inline
+</code></pre>
+<h2 id="图像读取">图像读取</h2>
+<p>opencv使用imread读取图片,imshow显示图片,但是对于我而言,常使用jupyter作为展示的工具,imshow在浏览器环境中就失去了它的作用,因此我会使用matplotlib来展示</p>
+<pre><code class="language-python">#读取一张图片
+cv2.imread(img,flag)
+#img这一参数中填入图片的完全路径或者相对路径
+</code></pre>
+<p>这里我们需要稍微了解下flag这个参数,这决定了opencv是如何读入我们的图像的<br>
+我们知道通常图像每个像素点的颜色我们以RGB的格式来描述(或者RGBA),可以通过三基色(red,green,blue)来描述所有颜色,对于透明图片我们会增加一个a(alpha)来描述其颜色的透明度.</p>
+<pre><code>    cv2.IMREAD_COLOR : 读入图片,任何与透明度相关通道的会被忽视,默认以这种方式读入.
+    cv2.IMREAD_GRAYSCALE : 以灰度图的形式读入图片.
+    cv2.IMREAD_UNCHANGED : 保留读取图片原有的颜色通道.
+</code></pre>
+<p>可以简单的用-1,0,1来分别表示这3个flag</p>
+<p>就让我们从著名的lenna图开始吧</p>
+<pre><code class="language-python">lenna_img = cv2.imread(&quot;lena.jpg&quot;)
+plt.imshow(lenna_img)
+plt.axis(&quot;off&quot;)#去除坐标轴
+plt.show()
+</code></pre>
+<p><img src="https://lynskylate.github.io/images/7720045/01.png" alt=""></p>
+<p>当把这张图片打印出来后,你一定在疑惑,咦,这张图怎么变青色了?</p>
+<p>原因就在于opencv默认的imread是以BGR的方式进行存储的,而matplotlib的imshow默认则是以RGB格式展示,所以此处我们必须对图片的通道进行转换</p>
+<pre><code class="language-python">lenna_img = cv2.cvtColor(lenna_img,cv2.COLOR_BGR2RGB)
+plt.imshow(lenna_img)
+plt.axis(&quot;off&quot;)
+plt.show()
+</code></pre>
+<p><img src="https://lynskylate.github.io/images/7720045/02.png" alt=""></p>
+<p>Lenna终于恢复了她的本来样子了<br>
+这里我们了解一下cvtColor这个函数,它的第一个参数是图片,第二个参数则是颜色通道的转化方式<br>
+它的命名是有规律的通常以COLOR作为开头,后面则跟着它的转化方式,BGR通道转化为RGB,因此就是cv2.COLOR_BGR2RGB<br>
+你可以试着猜测从RGB通道转化为BGR通道的api名,通过补全验证你的想法</p>
+<p>我们在刚刚使用了默认的flag读入了图片,那么让我们用用另外两个试试效果</p>
+<pre><code class="language-python">gray_lenna_img = cv2.imread(&quot;lena.jpg&quot;,0)
+orign_lenna_img = cv2.imread(&quot;lena.jpg&quot;,1)
+
+plt.subplot(121)
+plt.imshow(gray_lenna_img,cmap=plt.cm.gray)
+plt.axis(&quot;off&quot;)
+
+plt.subplot(122)
+orign_lenna_img = cv2.cvtColor(orign_lenna_img,cv2.COLOR_BGR2RGB)
+plt.imshow(orign_lenna_img)
+plt.axis(&quot;off&quot;)
+
+plt.show()
+</code></pre>
+<p><img src="https://lynskylate.github.io/images/7720045/03.png" alt=""></p>
+<p>因为lenna图并没有包含透明度这一通道,读入的仍然是BGR格式,所以我们从lenna图是看不出区别的</p>
+<h2 id="图片在python下的储存方式">图片在python下的储存方式</h2>
+<p>opencv的一个Image对象在python和C++下的存储方式是不同的,在c++下,通过opencv实现的Mat来进行存储,而python下则基于numpy</p>
+<p>numpy对于使用python进行科学计算的人都不算陌生,它为python提供了一个高效的矩阵运算模块.</p>
+<p>这就意味着我们可以直接使用numpy的api对图片进行计算和处理.</p>
+<pre><code class="language-python">print(&quot;Lenna图在python中存储的类型为&quot;,type(lenna_img))
+print(&quot;读入lenna图的shape为&quot;,lenna_img.shape)
+print(&quot;以灰白图读入lenna图的shape为&quot;,gray_lenna_img.shape)
+#Lenna图在python中存储的类型为 &lt;class 'numpy.ndarray'&gt;
+#读入lenna图的shape为 (512, 512, 3)
+#以灰白图读入lenna图的shape为 (512, 512)
+</code></pre>
+<p>上文实现的bgr装RGB我们也可以使用numpy来轻松的实现</p>
+<pre><code class="language-python">lenna_img = cv2.imread(&quot;lena.jpg&quot;)
+b,g,r = cv2.split(lenna_img)
+lenna_img = cv2.merge([r,g,b])
+plt.imshow(lenna_img)
+plt.axis(&quot;off&quot;)
+plt.show()
+#结果如下
+</code></pre>
+<p><img src="https://lynskylate.github.io/images/7720045/02.png" alt=""></p>
+<p>我们可以对之前的函数进行一些包装,毕竟每次都要设定坐标轴为off怎么也会厌烦的啊</p>
+<pre><code class="language-python">def show_cv_img(cv_image):
+    image = cv2.cvtColor(cv_image,cv2.COLOR_BGR2RGB)
+    plt.imshow(image)
+    plt.axis(&quot;off&quot;)
+</code></pre>
+<p>考虑到subplot此处没有直接plt.show</p>
+<pre><code class="language-python">show_cv_img(cv2.imread(&quot;lena.jpg&quot;))#jupyter result
+</code></pre>
+<p><img src="https://lynskylate.github.io/images/7720045/02.png" alt=""></p>
+<h2 id="图片的展示与存储">图片的展示与存储</h2>
+<p>虽然说我们通常使用jupyter来使用opencv,但还是要了解下opencv默认的imshow</p>
+<pre><code class="language-python">img = cv2.imread(&quot;lenna.jpg&quot;)
+cv2.namedWindow('image', cv2.WINDOW_NORMAL)#给显示的窗口命名,后面的flag默认为cv2.WINDOW_AUTOSIZE,自动调整边框
+#,但是在条形图过长时,使用windownormal我们可以自行调整边框
+cv2.imshow('image',img)#展示图片
+cv2.waitKey(0)#等待按键按下
+cv2.destroyAllWindows()#清除所有窗口
+</code></pre>
+<p>我们可以使用imwrite来存储一张图片,接受一个numpy的数组作为参数.</p>
+<pre><code class="language-python">cv2.imwrite('cope_lenna_img.jpg',lenna_img)
+#result: True
+</code></pre>
+<p>他会返回一个bool值来表示它是否成功存储.<br>
+我们成功在当前目录存储了一个叫做copy_lenna_img.jpg的图像.</p>
+<p>Warning:</p>
+<p>注意后缀.你的后缀是jpg还是png决定它以怎样的方式保存</p>
+<p>Opencv对于图像的读入和存储都已经封装好了给我们,是我们能够轻松的读入,存储,避免去了解图片文件的格式才能读取,存储图片,但仅仅这样显然不是opencv的真正面目,还不如直接用pillow呢.</p>
+<p>那么Opencv到底NB在哪里呢?</p>
+
+    </section> 
+    
+    
+     
+  </article>
+  
+<div class="share-card">
+    <a class="twitter" href="https://twitter.com/intent/tweet?text=https%3a%2f%2flynskylate.github.io%2fpost%2f7720045%2f - %e4%bd%bf%e7%94%a8python%e5%bc%80%e5%90%af%e4%bd%a0%e7%9a%84opencv%e4%b9%8b%e6%97%85---%e5%9b%be%e5%83%8f%e7%9a%84%e8%af%bb%e5%85%a5%2c%e5%ad%98%e5%82%a8 "><i class="fa fa-twitter"></i> Tweet</a>
+
+    <a class="facebook" href="#" onclick="
+        window.open(
+          'https://www.facebook.com/sharer/sharer.php?u='+encodeURIComponent(location.href),
+          'facebook-share-dialog',
+          'width=626,height=436');
+        return false;"><i class="fa fa-facebook"></i> Share
+    </a>
+</div>
+
+
+ 
+  
+  
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+
+(function() {
+    
+    
+    if (window.location.hostname == "localhost")
+        return;
+
+    var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+    var disqus_shortname = 'lynskylate';
+    dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+    (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+})();
+</script>
+<noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="http://disqus.com/" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+        </main>
+        
+        <aside class="desktop-only">
+            
+	<div class="widgets">
+  <section itemscope itemtype="https://schema.org/Person" class="widget socials">
+    <a href="https://lynskylate.github.io/about"><h2 class="widget-title">关于咸鱼博主</h2></a>
+    <div class="author-card" itemscope itemprop="author" itemtype="https://schema.org/Person">
+      <div class="author-dp">
+        <img itemprop='image' src="https://lynskylate.github.io/images/xiaomai.jpg" alt=".Site.Param.name" />
+      </div>
+      <div class="author-bio">
+        
+        <h4 class="author-title">
+          lynskylate <span itemprop="name"></span>
+        </h4>
+        
+        
+        <div class="author-description" itemprop="description">
+          Life is short, code lasts forever.
+        </div>
+        
+      </div>
+    </div>
+    <h2 class="widget-title">联系我</h2>
+    <ul>
+      
+      
+      
+      
+      <li><a href="https://github.com/lynskylate"><i class="fa fa-github"></i></a></li>
+      
+      
+      <li><a href="mailto://lynskylate@gmail.com"><i class="fa fa-envelope"></i></a></li>
+      
+    </ul>
+  </section>
+
+  
+
+</div>
+
+
+            <footer id="footer">
+    <p class="small">
+      Copyright © 2019, lynskylate; all rights reserved.
+    </p>
+</footer>
+        </aside>
+    </div>
+    
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+<script src="https://lynskylate.github.io/js/main.js"></script>
+<script src="https://lynskylate.github.io/js/highlight.js"></script>
+<script>hljs.initHighlightingOnLoad();</script>
+
+
+
+
+
+</body>
+</html>

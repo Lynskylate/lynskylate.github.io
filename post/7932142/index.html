@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+	<head>
+    <meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<base href="https://lynskylate.github.io/">
+<meta name="author" content="lynskylate">
+
+<meta name="generator" content="Hugo 0.161.1">
+<title>python数字图像处理(四) 频率域滤波</title>
+<link rel="shortcut icon" href="https://lynskylate.github.io/images/favicon.ico" type="">
+<link rel="stylesheet" href="https://lynskylate.github.io/css/style.css">
+<link rel="stylesheet" href="https://lynskylate.github.io/css/highlight.css">
+
+
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/latest/css/font-awesome.min.css">
+
+
+
+
+
+
+
+<meta property="og:title" content="python数字图像处理(四) 频率域滤波">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://lynskylate.github.io/">
+
+
+  <meta property="og:image" content="https://lynskylate.github.io//images/7932142/01.png">
+
+
+
+
+<link rel="canonical" href="https://lynskylate.github.io/post/7932142/">
+
+
+<script>
+  MathJax = {
+    tex: {
+      inlineMath: [['$', '$'], ['\\(', '\\)']],
+      displayMath: [['$$', '$$'], ['\\[', '\\]']],
+      processEscapes: true
+    },
+    svg: { fontCache: 'global' }
+  };
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" id="MathJax-script" async></script>
+
+
+    </head>
+<body>
+	  <header class="header">
+			<img src="https://lynskylate.github.io/images/xiaomai.jpg" alt="">
+
+		</header>
+    <nav class="main-nav">
+        <ul>
+    <li><a href='https://lynskylate.github.io/'>Articles</a></li>
+    <li><a href='https://lynskylate.github.io/about'>About</a></li>
+    <li><a href='https://lynskylate.github.io/tags'>Tags</a></li>
+    
+        <li><a href="https://lynskylate.github.io/index.xml" target="blank">Subscribe</a></li>
+    
+</ul>
+
+    </nav>
+    
+    
+    
+    <div id="site-wrapper">
+        <main>
+            
+  <article class="single">
+    <h1>python数字图像处理(四) 频率域滤波</h1>
+    <section class="extras">
+        <span class="tags">
+          <small class="time">November 30, 2017</small>
+          
+        </span>
+    </section>
+    <section class="description">
+      
+    </section>
+    
+    <section class="featuredImage">
+        <img src="https://lynskylate.github.io/images/7932142/01.png" alt="python数字图像处理(四) 频率域滤波">
+    </section>
+    
+    <section id="content" class="body">
+        <pre><code class="language-python">import matplotlib.pyplot as plt
+import numpy as np
+import cv2
+%matplotlib inline
+</code></pre>
+<p>首先读入这次需要使用的图像</p>
+<pre><code class="language-python">img = cv2.imread('apple.jpg',0) #直接读为灰度图像
+plt.imshow(img,cmap=&quot;gray&quot;)
+plt.axis(&quot;off&quot;)
+plt.show()
+</code></pre>
+<p><img src="https://lynskylate.github.io/images/7932142/01.png" alt=""></p>
+<p>使用numpy带的fft库完成从频率域到空间域的转换。</p>
+<pre><code class="language-python">f = np.fft.fft2(img)
+fshift = np.fft.fftshift(f)
+</code></pre>
+<h2 id="低通滤波器">低通滤波器</h2>
+<p>低通滤波器的公式如下</p>
+<p>$$H(u,v)=
+\begin{cases}
+1,  &amp; \text{if $D(u,v)$ } \leq D_{0}\\
+0, &amp; \text{if $D(u,v)$} \geq  D_{0}
+\end{cases}
+$$</p>
+<p>其中$D(u,v)$为频率域上$(u,v)$点到中心的距离，$D_0$由自己设置<br>
+<img src="https://lynskylate.github.io/images/7932142/02.png" alt=""><br>
+白点就是所允许通过的频率范围<br>
+3d图像如下<br>
+<img src="https://lynskylate.github.io/images/7932142/03.png" alt=""></p>
+<p>我们先把苹果转化成频率域看下效果</p>
+<pre><code class="language-python">#取绝对值：将复数变化成实数
+#取对数的目的为了将数据变化到0-255
+s1 = np.log(np.abs(fshift))
+plt.subplot(121),plt.imshow(s1,'gray')
+plt.title('Frequency Domain')
+plt.show()
+</code></pre>
+<p><img src="https://lynskylate.github.io/images/7932142/04.jpg" alt=""></p>
+<blockquote>
+<p>matplotlib对于不是uint8的图像会自动把图像的数值缩放到0-255上，更多可以查看<a href="https://stackoverflow.com/questions/39925420/bizzare-matplotlib-behaviour-in-displaying-images-cast-as-floats">对该问题的讨论</a></p>
+</blockquote>
+<p>我们在频率域上试着取不同的$d_0$再将其反变换到空间域看下效果</p>
+<pre><code class="language-python">def make_transform_matrix(d,image):
+    transfor_matrix = np.zeros(image.shape)
+    center_point = tuple(map(lambda x:(x-1)/2,s1.shape))
+    for i in range(transfor_matrix.shape[0]):
+        for j in range(transfor_matrix.shape[1]):
+            def cal_distance(pa,pb):
+                from math import sqrt
+                dis = sqrt((pa[0]-pb[0])**2+(pa[1]-pb[1])**2)
+                return dis
+            dis = cal_distance(center_point,(i,j))
+            if dis &lt;= d:
+                transfor_matrix[i,j]=1
+            else:
+                transfor_matrix[i,j]=0
+    return transfor_matrix
+
+d_1 = make_transform_matrix(10,fshift)
+d_2 = make_transform_matrix(30,fshift)
+d_3 = make_transform_matrix(50,fshift)
+</code></pre>
+<p>设定距离分别为10,30，50其通过的频率的范围如图</p>
+<pre><code class="language-python">plt.subplot(131)
+plt.axis(&quot;off&quot;)
+plt.imshow(d_1,cmap=&quot;gray&quot;)
+plt.title('D_1 10')
+plt.subplot(132)
+plt.axis(&quot;off&quot;)
+plt.title('D_2 30')
+plt.imshow(d_2,cmap=&quot;gray&quot;)
+plt.subplot(133)
+plt.axis(&quot;off&quot;)
+plt.title(&quot;D_3 50&quot;)
+plt.imshow(d_3,cmap=&quot;gray&quot;)
+plt.show()
+</code></pre>
+<p><img src="https://lynskylate.github.io/images/7932142/05.jpg" alt=""></p>
+<pre><code class="language-python">img_d1 = np.abs(np.fft.ifft2(np.fft.ifftshift(fshift*d_1)))
+img_d2 = np.abs(np.fft.ifft2(np.fft.ifftshift(fshift*d_2)))
+img_d3 = np.abs(np.fft.ifft2(np.fft.ifftshift(fshift*d_3)))
+plt.subplot(131)
+plt.axis(&quot;off&quot;)
+plt.imshow(img_d1,cmap=&quot;gray&quot;)
+plt.title('D_1 10')
+plt.subplot(132)
+plt.axis(&quot;off&quot;)
+plt.title('D_2 30')
+plt.imshow(img_d2,cmap=&quot;gray&quot;)
+plt.subplot(133)
+plt.axis(&quot;off&quot;)
+plt.title(&quot;D_3 50&quot;)
+plt.imshow(img_d3,cmap=&quot;gray&quot;)
+plt.show()
+</code></pre>
+<p><img src="https://lynskylate.github.io/images/7932142/06.jpg" alt=""></p>
+<p>讲上面过程整理得到频率域低通滤波器的代码如下</p>
+<pre><code class="language-python">def lowPassFilter(image,d):
+    f = np.fft.fft2(image)
+    fshift = np.fft.fftshift(f)
+    
+    def make_transform_matrix(d):
+        transfor_matrix = np.zeros(image.shape)
+        center_point = tuple(map(lambda x:(x-1)/2,s1.shape))
+        for i in range(transfor_matrix.shape[0]):
+            for j in range(transfor_matrix.shape[1]):
+                def cal_distance(pa,pb):
+                    from math import sqrt
+                    dis = sqrt((pa[0]-pb[0])**2+(pa[1]-pb[1])**2)
+                    return dis
+                dis = cal_distance(center_point,(i,j))
+                if dis &lt;= d:
+                    transfor_matrix[i,j]=1
+                else:
+                    transfor_matrix[i,j]=0
+        return transfor_matrix
+    d_matrix = make_transform_matrix(d)
+    new_img = np.abs(np.fft.ifft2(np.fft.ifftshift(fshift*d_matrix)))
+    return new_img
+</code></pre>
+<pre><code class="language-python">plt.imshow(lowPassFilter(img,60),cmap=&quot;gray&quot;)
+</code></pre>
+<p><img src="https://lynskylate.github.io/images/7932142/07.jpg" alt=""></p>
+<h2 id="高通滤波器">高通滤波器</h2>
+<p>高通滤波器同低通滤波器非常类似，只不过二者通过的波正好是相反的</p>
+<p>$$H(u,v)=
+\begin{cases}
+0,  &amp; \text{if $D(u,v)$ } \leq D_{0}\\
+1, &amp; \text{if $D(u,v)$} \geq  D_{0}
+\end{cases}
+$$</p>
+<p><img src="https://lynskylate.github.io/images/7932142/08.jpg" alt=""></p>
+<pre><code class="language-python">def highPassFilter(image,d):
+    f = np.fft.fft2(image)
+    fshift = np.fft.fftshift(f)   
+    def make_transform_matrix(d):
+        transfor_matrix = np.zeros(image.shape)
+        center_point = tuple(map(lambda x:(x-1)/2,s1.shape))
+        for i in range(transfor_matrix.shape[0]):
+            for j in range(transfor_matrix.shape[1]):
+                def cal_distance(pa,pb):
+                    from math import sqrt
+                    dis = sqrt((pa[0]-pb[0])**2+(pa[1]-pb[1])**2)
+                    return dis
+                dis = cal_distance(center_point,(i,j))
+                if dis &lt;= d:
+                    transfor_matrix[i,j]=0
+                else:
+                    transfor_matrix[i,j]=1
+        return transfor_matrix
+    d_matrix = make_transform_matrix(d)
+    new_img = np.abs(np.fft.ifft2(np.fft.ifftshift(fshift*d_matrix)))
+    return new_img
+</code></pre>
+<pre><code class="language-python">img_d1 = highPassFilter(img,10)
+img_d2 = highPassFilter(img,30)
+img_d3 = highPassFilter(img,50)
+plt.subplot(131)
+plt.axis(&quot;off&quot;)
+plt.imshow(img_d1,cmap=&quot;gray&quot;)
+plt.title('D_1 10')
+plt.subplot(132)
+plt.axis(&quot;off&quot;)
+plt.title('D_2 30')
+plt.imshow(img_d2,cmap=&quot;gray&quot;)
+plt.subplot(133)
+plt.axis(&quot;off&quot;)
+plt.title(&quot;D_3 50&quot;)
+plt.imshow(img_d3,cmap=&quot;gray&quot;)
+plt.show()
+</code></pre>
+<p><img src="https://lynskylate.github.io/images/7932142/09.jpg" alt=""></p>
+<p>显然当$D_0=10$时，苹果的边缘最清楚</p>
+<h2 id="不同滤波的比较">不同滤波的比较</h2>
+<pre><code class="language-python">import imagefilter
+</code></pre>
+<pre><code class="language-python">thread_img = imagefilter.RobertsAlogrithm(img)
+laplace_img = imagefilter.LaplaceAlogrithm(img,&quot;fourfields&quot;)
+mean_img = cv2.blur(img,(3,3))
+plt.subplot(131)
+plt.imshow(thread_img,cmap=&quot;gray&quot;)
+plt.title(&quot;ThreadImage&quot;)
+plt.axis(&quot;off&quot;)
+plt.subplot(132)
+plt.imshow(laplace_img,cmap=&quot;gray&quot;)
+plt.axis(&quot;off&quot;)
+plt.title(&quot;LaplaceImage&quot;)
+plt.subplot(133)
+plt.imshow(mean_img,cmap=&quot;gray&quot;)
+plt.title(&quot;meanImage&quot;)
+plt.axis(&quot;off&quot;)
+plt.show()
+</code></pre>
+<p><img src="https://lynskylate.github.io/images/7932142/10.jpg" alt=""></p>
+<p>空间域上的平均滤波和低通滤波一样，只要起去掉无关信息，平滑图像的作用。</p>
+<p>Roberts，Laplace等滤波则起的提取边缘的作用。</p>
+<h2 id="频率域高通滤波器">频率域高通滤波器</h2>
+<h3 id="高斯高通滤波器">高斯高通滤波器</h3>
+<p>频率域高斯高通滤波器的公式如下</p>
+<p>$$H(u,v) = 1-e^{\dfrac{-D^2(u,v)}{2D_0^2}}
+$$</p>
+<p><img src="https://lynskylate.github.io/images/7932142/11.jpg" alt=""></p>
+<pre><code class="language-python">def GaussianHighFilter(image,d):
+    f = np.fft.fft2(image)
+    fshift = np.fft.fftshift(f)
+    def make_transform_matrix(d):
+        transfor_matrix = np.zeros(image.shape)
+        center_point = tuple(map(lambda x:(x-1)/2,s1.shape))
+        for i in range(transfor_matrix.shape[0]):
+            for j in range(transfor_matrix.shape[1]):
+                def cal_distance(pa,pb):
+                    from math import sqrt
+                    dis = sqrt((pa[0]-pb[0])**2+(pa[1]-pb[1])**2)
+                    return dis
+                dis = cal_distance(center_point,(i,j))
+                transfor_matrix[i,j] = 1-np.exp(-(dis**2)/(2*(d**2)))
+        return transfor_matrix
+    d_matrix = make_transform_matrix(d)
+    new_img = np.abs(np.fft.ifft2(np.fft.ifftshift(fshift*d_matrix)))
+    return new_img
+</code></pre>
+<p>使用高斯滤波器d分别为10,30,50实现的效果</p>
+<pre><code class="language-python">img_d1 = GaussianHighFilter(img,10)
+img_d2 = GaussianHighFilter(img,30)
+img_d3 = GaussianHighFilter(img,50)
+plt.subplot(131)
+plt.axis(&quot;off&quot;)
+plt.imshow(img_d1,cmap=&quot;gray&quot;)
+plt.title('D_1 10')
+plt.subplot(132)
+plt.axis(&quot;off&quot;)
+plt.title('D_2 30')
+plt.imshow(img_d2,cmap=&quot;gray&quot;)
+plt.subplot(133)
+plt.axis(&quot;off&quot;)
+plt.title(&quot;D_3 50&quot;)
+plt.imshow(img_d3,cmap=&quot;gray&quot;)
+plt.show()
+</code></pre>
+<p><img src="https://lynskylate.github.io/images/7932142/12.jpg" alt=""></p>
+<h3 id="高斯低通滤波器">高斯低通滤波器</h3>
+<p>频率域高斯低通滤波器的公式如下</p>
+<p>$$H(u,v) = e^{\dfrac{-D^2(u,v)}{2D_0^2}}
+$$</p>
+<pre><code class="language-python">def GaussianLowFilter(image,d):
+    f = np.fft.fft2(image)
+    fshift = np.fft.fftshift(f)
+    def make_transform_matrix(d):
+        transfor_matrix = np.zeros(image.shape)
+        center_point = tuple(map(lambda x:(x-1)/2,s1.shape))
+        for i in range(transfor_matrix.shape[0]):
+            for j in range(transfor_matrix.shape[1]):
+                def cal_distance(pa,pb):
+                    from math import sqrt
+                    dis = sqrt((pa[0]-pb[0])**2+(pa[1]-pb[1])**2)
+                    return dis
+                dis = cal_distance(center_point,(i,j))
+                transfor_matrix[i,j] = np.exp(-(dis**2)/(2*(d**2)))
+        return transfor_matrix
+    d_matrix = make_transform_matrix(d)
+    new_img = np.abs(np.fft.ifft2(np.fft.ifftshift(fshift*d_matrix)))
+    return new_img
+</code></pre>
+<pre><code class="language-python">img_d1 = GaussianLowFilter(img,10)
+img_d2 = GaussianLowFilter(img,30)
+img_d3 = GaussianLowFilter(img,50)
+plt.subplot(131)
+plt.axis(&quot;off&quot;)
+plt.imshow(img_d1,cmap=&quot;gray&quot;)
+plt.title('D_1 10')
+plt.subplot(132)
+plt.axis(&quot;off&quot;)
+plt.title('D_2 30')
+plt.imshow(img_d2,cmap=&quot;gray&quot;)
+plt.subplot(133)
+plt.axis(&quot;off&quot;)
+plt.title(&quot;D_3 50&quot;)
+plt.imshow(img_d3,cmap=&quot;gray&quot;)
+plt.show()
+</code></pre>
+<p><img src="https://lynskylate.github.io/images/7932142/13.jpg" alt=""></p>
+<h2 id="空间域的高斯滤波">空间域的高斯滤波</h2>
+<p>通常空间域使用高斯滤波来平滑图像，在上一篇已经写过，直接使用上篇文章的代码。</p>
+<pre><code class="language-python">def GaussianOperator(roi):
+    GaussianKernel = np.array([[1,2,1],[2,4,2],[1,2,1]])
+    result = np.sum(roi*GaussianKernel/16)
+    return result
+
+def GaussianSmooth(image):
+    new_image = np.zeros(image.shape)
+    image = cv2.copyMakeBorder(image,1,1,1,1,cv2.BORDER_DEFAULT)
+    for i in range(1,image.shape[0]-1):
+        for j in range(1,image.shape[1]-1):
+            new_image[i-1,j-1] =GaussianOperator(image[i-1:i+2,j-1:j+2])
+    return new_image.astype(np.uint8)
+
+new_apple = GaussianSmooth(img)
+plt.subplot(121)
+plt.axis(&quot;off&quot;)
+plt.title(&quot;origin image&quot;)
+plt.imshow(img,cmap=&quot;gray&quot;)
+plt.subplot(122)
+plt.axis(&quot;off&quot;)
+plt.title(&quot;Gaussian image&quot;)
+plt.imshow(img,cmap=&quot;gray&quot;)
+plt.subplot(122)
+plt.axis(&quot;off&quot;)
+plt.show()
+</code></pre>
+<p><img src="https://lynskylate.github.io/images/7932142/14.jpg" alt=""></p>
+<h2 id="巴特沃斯滤波器">巴特沃斯滤波器</h2>
+<p>无论是低通滤波器，高通滤波器都是粗暴的一刀切，正如之前那么多空间域的滤波器一样，我们希望它通过的频率和与中心线性相关。</p>
+<p>$$h(u,v) = \frac{1} {{1+(D_0 / D(u,v))}^{2n}}
+$$</p>
+<p><img src="https://lynskylate.github.io/images/7932142/15.jpg" alt=""></p>
+<pre><code class="language-python">def butterworthPassFilter(image,d,n):
+    f = np.fft.fft2(image)
+    fshift = np.fft.fftshift(f)
+    
+    def make_transform_matrix(d):
+        transfor_matrix = np.zeros(image.shape)
+        center_point = tuple(map(lambda x:(x-1)/2,s1.shape))
+        for i in range(transfor_matrix.shape[0]):
+            for j in range(transfor_matrix.shape[1]):
+                def cal_distance(pa,pb):
+                    from math import sqrt
+                    dis = sqrt((pa[0]-pb[0])**2+(pa[1]-pb[1])**2)
+                    return dis
+                dis = cal_distance(center_point,(i,j))
+                transfor_matrix[i,j] = 1/((1+(d/dis))**n)
+        return transfor_matrix
+    d_matrix = make_transform_matrix(d)
+    new_img = np.abs(np.fft.ifft2(np.fft.ifftshift(fshift*d_matrix)))
+    return new_img
+</code></pre>
+<pre><code class="language-python">plt.subplot(231)
+butter_100_1 = butterworthPassFilter(img,100,1)
+plt.imshow(butter_100_1,cmap=&quot;gray&quot;)
+plt.title(&quot;d=100,n=1&quot;)
+plt.axis(&quot;off&quot;)
+plt.subplot(232)
+butter_100_2 = butterworthPassFilter(img,100,2)
+plt.imshow(butter_100_2,cmap=&quot;gray&quot;)
+plt.title(&quot;d=100,n=2&quot;)
+plt.axis(&quot;off&quot;)
+plt.subplot(233)
+butter_100_3 = butterworthPassFilter(img,100,3)
+plt.imshow(butter_100_3,cmap=&quot;gray&quot;)
+plt.title(&quot;d=100,n=3&quot;)
+plt.axis(&quot;off&quot;)
+plt.subplot(234)
+butter_100_1 = butterworthPassFilter(img,30,1)
+plt.imshow(butter_100_1,cmap=&quot;gray&quot;)
+plt.title(&quot;d=30,n=1&quot;)
+plt.axis(&quot;off&quot;)
+plt.subplot(235)
+butter_100_2 = butterworthPassFilter(img,30,2)
+plt.imshow(butter_100_2,cmap=&quot;gray&quot;)
+plt.title(&quot;d=30,n=2&quot;)
+plt.axis(&quot;off&quot;)
+plt.subplot(236)
+butter_100_3 = butterworthPassFilter(img,30,3)
+plt.imshow(butter_100_3,cmap=&quot;gray&quot;)
+plt.title(&quot;d=30,n=3&quot;)
+plt.axis(&quot;off&quot;)
+plt.show()
+</code></pre>
+<p><img src="https://lynskylate.github.io/images/7932142/16.jpg" alt=""></p>
+<p>可以明显的观察出过大的n造成的振铃现象</p>
+<pre><code class="language-python">butter_5_1 = butterworthPassFilter(img,5,1)
+plt.imshow(butter_5_1,cmap=&quot;gray&quot;)
+plt.title(&quot;d=5,n=3&quot;)
+plt.axis(&quot;off&quot;)
+plt.show()
+</code></pre>
+<p><img src="https://lynskylate.github.io/images/7932142/17.jpg" alt=""></p>
+
+    </section> 
+    
+    
+     
+  </article>
+  
+<div class="share-card">
+    <a class="twitter" href="https://twitter.com/intent/tweet?text=https%3a%2f%2flynskylate.github.io%2fpost%2f7932142%2f - python%e6%95%b0%e5%ad%97%e5%9b%be%e5%83%8f%e5%a4%84%e7%90%86%28%e5%9b%9b%29%20%e9%a2%91%e7%8e%87%e5%9f%9f%e6%bb%a4%e6%b3%a2 "><i class="fa fa-twitter"></i> Tweet</a>
+
+    <a class="facebook" href="#" onclick="
+        window.open(
+          'https://www.facebook.com/sharer/sharer.php?u='+encodeURIComponent(location.href),
+          'facebook-share-dialog',
+          'width=626,height=436');
+        return false;"><i class="fa fa-facebook"></i> Share
+    </a>
+</div>
+
+
+ 
+  
+  
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+
+(function() {
+    
+    
+    if (window.location.hostname == "localhost")
+        return;
+
+    var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+    var disqus_shortname = 'lynskylate';
+    dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+    (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+})();
+</script>
+<noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="http://disqus.com/" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+        </main>
+        
+        <aside class="desktop-only">
+            
+	<div class="widgets">
+  <section itemscope itemtype="https://schema.org/Person" class="widget socials">
+    <a href="https://lynskylate.github.io/about"><h2 class="widget-title">关于咸鱼博主</h2></a>
+    <div class="author-card" itemscope itemprop="author" itemtype="https://schema.org/Person">
+      <div class="author-dp">
+        <img itemprop='image' src="https://lynskylate.github.io/images/xiaomai.jpg" alt=".Site.Param.name" />
+      </div>
+      <div class="author-bio">
+        
+        <h4 class="author-title">
+          lynskylate <span itemprop="name"></span>
+        </h4>
+        
+        
+        <div class="author-description" itemprop="description">
+          Life is short, code lasts forever.
+        </div>
+        
+      </div>
+    </div>
+    <h2 class="widget-title">联系我</h2>
+    <ul>
+      
+      
+      
+      
+      <li><a href="https://github.com/lynskylate"><i class="fa fa-github"></i></a></li>
+      
+      
+      <li><a href="mailto://lynskylate@gmail.com"><i class="fa fa-envelope"></i></a></li>
+      
+    </ul>
+  </section>
+
+  
+
+</div>
+
+
+            <footer id="footer">
+    <p class="small">
+      Copyright © 2019, lynskylate; all rights reserved.
+    </p>
+</footer>
+        </aside>
+    </div>
+    
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+<script src="https://lynskylate.github.io/js/main.js"></script>
+<script src="https://lynskylate.github.io/js/highlight.js"></script>
+<script>hljs.initHighlightingOnLoad();</script>
+
+
+
+
+
+</body>
+</html>

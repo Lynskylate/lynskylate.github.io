@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+	<head>
+    <meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<base href="https://lynskylate.github.io/">
+<meta name="author" content="lynskylate">
+
+<meta name="generator" content="Hugo 0.161.1">
+<title>python数字图像处理（五） 图像的退化和复原</title>
+<link rel="shortcut icon" href="https://lynskylate.github.io/images/favicon.ico" type="">
+<link rel="stylesheet" href="https://lynskylate.github.io/css/style.css">
+<link rel="stylesheet" href="https://lynskylate.github.io/css/highlight.css">
+
+
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/latest/css/font-awesome.min.css">
+
+
+
+
+
+
+
+<meta property="og:title" content="python数字图像处理（五） 图像的退化和复原">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://lynskylate.github.io/">
+
+
+  <meta property="og:image" content="https://lynskylate.github.io//images/8047510/01.png">
+
+
+
+
+<link rel="canonical" href="https://lynskylate.github.io/post/8047510/">
+
+
+<script>
+  MathJax = {
+    tex: {
+      inlineMath: [['$', '$'], ['\\(', '\\)']],
+      displayMath: [['$$', '$$'], ['\\[', '\\]']],
+      processEscapes: true
+    },
+    svg: { fontCache: 'global' }
+  };
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" id="MathJax-script" async></script>
+
+
+    </head>
+<body>
+	  <header class="header">
+			<img src="https://lynskylate.github.io/images/xiaomai.jpg" alt="">
+
+		</header>
+    <nav class="main-nav">
+        <ul>
+    <li><a href='https://lynskylate.github.io/'>Articles</a></li>
+    <li><a href='https://lynskylate.github.io/about'>About</a></li>
+    <li><a href='https://lynskylate.github.io/tags'>Tags</a></li>
+    
+        <li><a href="https://lynskylate.github.io/index.xml" target="blank">Subscribe</a></li>
+    
+</ul>
+
+    </nav>
+    
+    
+    
+    <div id="site-wrapper">
+        <main>
+            
+  <article class="single">
+    <h1>python数字图像处理（五） 图像的退化和复原</h1>
+    <section class="extras">
+        <span class="tags">
+          <small class="time">December 16, 2017</small>
+          
+        </span>
+    </section>
+    <section class="description">
+      
+    </section>
+    
+    <section class="featuredImage">
+        <img src="https://lynskylate.github.io/images/8047510/01.png" alt="python数字图像处理（五） 图像的退化和复原">
+    </section>
+    
+    <section id="content" class="body">
+        <pre><code class="language-python">import cv2
+import numpy as np
+import matplotlib.pyplot as plt
+import scipy
+import scipy.stats
+%matplotlib inline
+</code></pre>
+<p>读入我们需要的图像</p>
+<pre><code class="language-python">apple = cv2.imread(&quot;apple.jpg&quot;)
+apple = cv2.resize(cv2.cvtColor(apple,cv2.COLOR_BGR2RGB),(200,200))
+plt.imshow(apple)
+plt.axis(&quot;off&quot;)
+plt.show()
+</code></pre>
+<p><img src="https://lynskylate.github.io/images/8047510/01.png" alt="png"></p>
+<h1 id="噪声">噪声</h1>
+<h2 id="高斯噪声">高斯噪声</h2>
+<h3 id="简介">简介</h3>
+<blockquote>
+<p>高斯噪声是指它的概率密度函数服从高斯分布（即正态分布）的一类噪声</p>
+</blockquote>
+<blockquote>
+<p>与椒盐噪声相似（Salt And Pepper Noise），高斯噪声（gauss noise）也是数字图像的一个常见噪声。</p>
+</blockquote>
+<blockquote>
+<p>椒盐噪声是出现在随机位置、噪点深度基本固定的噪声，高斯噪声与其相反，是几乎<strong>每个点上都出现噪声、噪点深度随机</strong>的噪声。</p>
+</blockquote>
+<p>正如上面的简介我们只要实现一个随机矩阵，矩阵中值总体来说符合高斯分布，与原图像想加，就可以实现高斯噪声了，python中的random提供了产生高斯随机数的方法，但是numpy提供了直接生成随机高斯矩阵的方法。</p>
+<p>我们这里使用numpy即可</p>
+<pre><code class="language-python">gauss = np.random.normal(mean,sigma,(row,col,ch))
+</code></pre>
+<p>因此我们可以得出产生高斯噪声的方式</p>
+<pre><code class="language-python">def GaussieNoisy(image,sigma):
+    row,col,ch= image.shape
+    mean = 0
+    gauss = np.random.normal(mean,sigma,(row,col,ch))
+    gauss = gauss.reshape(row,col,ch)
+    noisy = image + gauss
+    return noisy.astype(np.uint8)
+</code></pre>
+<pre><code class="language-python">plt.imshow(GaussieNoisy(apple,25))
+plt.show()
+</code></pre>
+<p><img src="https://lynskylate.github.io/images/8047510/02.png" alt="png"></p>
+<p>上图为施加sigma为25的高斯噪声的效果</p>
+<h2 id="椒盐噪声">椒盐噪声</h2>
+<p>相比高斯噪声，椒盐噪声的概念非常简单，即在图像中随机选点，使其为0或255</p>
+<pre><code class="language-python">def spNoisy(image,s_vs_p = 0.5,amount = 0.004):
+    row,col,ch = image.shape
+
+    out = np.copy(image)
+    num_salt = np.ceil(amount * image.size * s_vs_p)
+    coords = [np.random.randint(0, i - 1, int(num_salt))  for i in image.shape]
+    out[coords] = 1
+    num_pepper = np.ceil(amount* image.size * (1. - s_vs_p))
+    coords = [np.random.randint(0, i - 1, int(num_pepper)) for i in image.shape]
+    out[coords] = 0
+    return out
+</code></pre>
+<pre><code class="language-python">plt.imshow(spNoisy(apple))
+plt.show()
+</code></pre>
+<p><img src="https://lynskylate.github.io/images/8047510/03.png" alt="png"></p>
+<h1 id="滤波">滤波</h1>
+<h2 id="算术均值滤波">算术均值滤波</h2>
+<p>算术均值滤波器即求某一范围内图像的均值，代替范围中心点的值，在前面已经实现过。</p>
+<pre><code class="language-python">def ArithmeticMeanOperator(roi):
+    return np.mean(roi)
+def ArithmeticMeanAlogrithm(image):
+    new_image = np.zeros(image.shape)
+    image = cv2.copyMakeBorder(image,1,1,1,1,cv2.BORDER_DEFAULT)
+    for i in range(1,image.shape[0]-1):
+        for j in range(1,image.shape[1]-1):
+            new_image[i-1,j-1] = ArithmeticMeanOperator(image[i-1:i+2,j-1:j+2])
+    new_image = (new_image-np.min(image))*(255/np.max(image))
+    return new_image.astype(np.uint8)
+</code></pre>
+<pre><code class="language-python">def rgbArithmeticMean(image):
+    r,g,b = cv2.split(image)
+    r = ArithmeticMeanAlogrithm(r)
+    g = ArithmeticMeanAlogrithm(g)
+    b = ArithmeticMeanAlogrithm(b)
+    return cv2.merge([r,g,b])
+plt.imshow(rgbArithmeticMean(apple))
+plt.show()
+</code></pre>
+<p><img src="https://lynskylate.github.io/images/8047510/04.png" alt=""></p>
+<h2 id="几何均值滤波">几何均值滤波</h2>
+<p>几何均值公式如下</p>
+<p>$$f(x,y) = [\prod_{(s,t)\in S_{x,y}}{g(s,t)}]^{\frac 1{mn}}
+$$</p>
+<pre><code class="language-python">def GeometricMeanOperator(roi):
+    roi = roi.astype(np.float64)
+    p = np.prod(roi)
+    return p**(1/(roi.shape[0]*roi.shape[1]))
+    
+def GeometricMeanAlogrithm(image):
+    new_image = np.zeros(image.shape)
+    image = cv2.copyMakeBorder(image,1,1,1,1,cv2.BORDER_DEFAULT)
+    for i in range(1,image.shape[0]-1):
+        for j in range(1,image.shape[1]-1):
+            new_image[i-1,j-1] = GeometricMeanOperator(image[i-1:i+2,j-1:j+2])
+    new_image = (new_image-np.min(image))*(255/np.max(image))
+    return new_image.astype(np.uint8)
+</code></pre>
+<pre><code class="language-python">def rgbGemotriccMean(image):
+    r,g,b = cv2.split(image)
+    r = GeometricMeanAlogrithm(r)
+    g = GeometricMeanAlogrithm(g)
+    b = GeometricMeanAlogrithm(b)
+    return cv2.merge([r,g,b])
+plt.imshow(rgbGemotriccMean(apple))
+plt.show()
+</code></pre>
+<p><img src="https://lynskylate.github.io/images/8047510/05.png" alt=""></p>
+<h2 id="谐波均值">谐波均值</h2>
+<p>谐波均值公式定义如下</p>
+<p>$$    H = \frac{n} {\frac{1}{x_1}+\frac{1}{x_2}+\frac{1}{x_3}\ldots \frac{1}{x_n}}
+$$</p>
+<p>这里需要注意的是，谐波均值处理的数必须大于0,当x存在为0的数是，趋近于无穷，则H=0<br>
+因此我们此处当存在x大于0的数时，就返回0</p>
+<pre><code class="language-python">def HMeanOperator(roi):
+    roi = roi.astype(np.float64)
+    if 0 in roi:
+        roi = 0
+    else:
+        roi = scipy.stats.hmean(roi.reshape(-1))
+    return roi
+def HMeanAlogrithm(image):
+    new_image = np.zeros(image.shape)
+    image = cv2.copyMakeBorder(image,1,1,1,1,cv2.BORDER_DEFAULT)
+    for i in range(1,image.shape[0]-1):
+        for j in range(1,image.shape[1]-1):
+            new_image[i-1,j-1] =HMeanOperator(image[i-1:i+2,j-1:j+2])
+    new_image = (new_image-np.min(image))*(255/np.max(image))
+    return new_image.astype(np.uint8)
+def rgbHMean(image):
+    r,g,b = cv2.split(image)
+    r = HMeanAlogrithm(r)
+    g = HMeanAlogrithm(g)
+    b = HMeanAlogrithm(b)
+    return cv2.merge([r,g,b])
+plt.imshow(rgbHMean(apple))
+plt.show()
+</code></pre>
+<p><img src="https://lynskylate.github.io/images/8047510/06.png" alt=""></p>
+<h2 id="逆谐波均值">逆谐波均值</h2>
+<p>公式如下</p>
+<p>$$f(x,y) = \frac{\sum_{(s,t)\in S_{xy}}{g(s,t)^{Q+1}}} {\sum_{(s,t)\in S_{xy}}{g(s,t)^{Q}}}
+$$</p>
+<p>因此使用python实现如下</p>
+<pre><code class="language-python">def IHMeanOperator(roi,q):
+    roi = roi.astype(np.float64)
+    return np.mean((roi)**(q+1))/np.mean((roi)**(q))
+def IHMeanAlogrithm(image,q):
+    new_image = np.zeros(image.shape)
+    image = cv2.copyMakeBorder(image,1,1,1,1,cv2.BORDER_DEFAULT)
+    for i in range(1,image.shape[0]-1):
+        for j in range(1,image.shape[1]-1):
+            new_image[i-1,j-1] = IHMeanOperator(image[i-1:i+2,j-1:j+2],q)
+    new_image = (new_image-np.min(image))*(255/np.max(image))
+    return new_image.astype(np.uint8)
+def rgbIHMean(image,q):
+    r,g,b = cv2.split(image)
+    r = IHMeanAlogrithm(r,q)
+    g = IHMeanAlogrithm(g,q)
+    b = IHMeanAlogrithm(b,q)
+    return cv2.merge([r,g,b])
+plt.imshow(rgbIHMean(apple,2))
+plt.show()
+</code></pre>
+<p><img src="https://lynskylate.github.io/images/8047510/07.png" alt=""></p>
+<h2 id="图像的复原">图像的复原</h2>
+<p>下面我们将试着对加了高斯噪声和椒盐噪声的图像进行复原</p>
+<pre><code class="language-python">spApple = spNoisy(apple,0.5,0.1)
+gaussApple = GaussieNoisy(apple,25)
+plt.subplot(121)
+plt.title(&quot;Salt And peper Image&quot;)
+plt.imshow(spApple)
+plt.axis(&quot;off&quot;)
+plt.subplot(122)
+plt.imshow(gaussApple)
+plt.axis(&quot;off&quot;)
+plt.title(&quot;Gauss noise Image&quot;)
+plt.show()
+</code></pre>
+<p><img src="https://lynskylate.github.io/images/8047510/08.png" alt=""></p>
+<pre><code class="language-python">arith_sp_apple = rgbArithmeticMean(spApple)
+gemo_sp_apple = rgbGemotriccMean(spApple)
+plt.subplot(121)
+plt.title(&quot;Arithmatic to spImage&quot;)
+plt.imshow(arith_sp_apple)
+plt.axis(&quot;off&quot;)
+plt.subplot(122)
+plt.imshow(gemo_sp_apple)
+plt.axis(&quot;off&quot;)
+plt.title(&quot;Geomotric to spImage&quot;)
+plt.show()
+</code></pre>
+<p><img src="https://lynskylate.github.io/images/8047510/09.png" alt=""></p>
+<pre><code class="language-python">arith_gs_apple = rgbArithmeticMean(gaussApple)
+gemo_gs_apple = rgbGemotriccMean(gaussApple)
+plt.subplot(121)
+plt.title(&quot;Arithmatic to gsImage&quot;)
+plt.imshow(arith_gs_apple)
+plt.axis(&quot;off&quot;)
+plt.subplot(122)
+plt.imshow(gemo_gs_apple)
+plt.axis(&quot;off&quot;)
+plt.title(&quot;Geomotric to gsImage&quot;)
+plt.show()
+</code></pre>
+<p><img src="https://lynskylate.github.io/images/8047510/10.png" alt=""></p>
+<p>算术均值能略微去除椒盐噪声产生的点，几何均值效果却有些奇怪。</p>
+<p>对于高斯噪声，二者的效果都非常弱</p>
+<pre><code class="language-python">arith_sp_apple = rgbHMean(spApple)
+gemo_sp_apple = rgbIHMean(spApple,3)
+plt.subplot(121)
+plt.title(&quot;H Mean to spImage&quot;)
+plt.imshow(arith_sp_apple)
+plt.axis(&quot;off&quot;)
+plt.subplot(122)
+plt.imshow(gemo_sp_apple)
+plt.axis(&quot;off&quot;)
+plt.title(&quot;IH mean to spImage&quot;)
+plt.show()
+</code></pre>
+<p><img src="https://lynskylate.github.io/images/8047510/11.png" alt=""></p>
+<pre><code class="language-python">arith_gs_apple = rgbHMean(gaussApple)
+gemo_gs_apple = rgbIHMean(gaussApple,3)
+plt.subplot(121)
+plt.title(&quot;HMean to gsImage&quot;)
+plt.imshow(arith_gs_apple)
+plt.axis(&quot;off&quot;)
+plt.subplot(122)
+plt.imshow(gemo_gs_apple)
+plt.axis(&quot;off&quot;)
+plt.title(&quot;IHMean to gsImage&quot;)
+plt.show()
+</code></pre>
+<p><img src="https://lynskylate.github.io/images/8047510/12.png" alt=""></p>
+<p>如图，IHMEAN的效果要比Hmean好很多,即使是高斯造神也能达到良好的去噪效果</p>
+
+    </section> 
+    
+    
+     
+  </article>
+  
+<div class="share-card">
+    <a class="twitter" href="https://twitter.com/intent/tweet?text=https%3a%2f%2flynskylate.github.io%2fpost%2f8047510%2f - python%e6%95%b0%e5%ad%97%e5%9b%be%e5%83%8f%e5%a4%84%e7%90%86%ef%bc%88%e4%ba%94%ef%bc%89%20%e5%9b%be%e5%83%8f%e7%9a%84%e9%80%80%e5%8c%96%e5%92%8c%e5%a4%8d%e5%8e%9f "><i class="fa fa-twitter"></i> Tweet</a>
+
+    <a class="facebook" href="#" onclick="
+        window.open(
+          'https://www.facebook.com/sharer/sharer.php?u='+encodeURIComponent(location.href),
+          'facebook-share-dialog',
+          'width=626,height=436');
+        return false;"><i class="fa fa-facebook"></i> Share
+    </a>
+</div>
+
+
+ 
+  
+  
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+
+(function() {
+    
+    
+    if (window.location.hostname == "localhost")
+        return;
+
+    var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+    var disqus_shortname = 'lynskylate';
+    dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+    (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+})();
+</script>
+<noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="http://disqus.com/" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+        </main>
+        
+        <aside class="desktop-only">
+            
+	<div class="widgets">
+  <section itemscope itemtype="https://schema.org/Person" class="widget socials">
+    <a href="https://lynskylate.github.io/about"><h2 class="widget-title">关于咸鱼博主</h2></a>
+    <div class="author-card" itemscope itemprop="author" itemtype="https://schema.org/Person">
+      <div class="author-dp">
+        <img itemprop='image' src="https://lynskylate.github.io/images/xiaomai.jpg" alt=".Site.Param.name" />
+      </div>
+      <div class="author-bio">
+        
+        <h4 class="author-title">
+          lynskylate <span itemprop="name"></span>
+        </h4>
+        
+        
+        <div class="author-description" itemprop="description">
+          Life is short, code lasts forever.
+        </div>
+        
+      </div>
+    </div>
+    <h2 class="widget-title">联系我</h2>
+    <ul>
+      
+      
+      
+      
+      <li><a href="https://github.com/lynskylate"><i class="fa fa-github"></i></a></li>
+      
+      
+      <li><a href="mailto://lynskylate@gmail.com"><i class="fa fa-envelope"></i></a></li>
+      
+    </ul>
+  </section>
+
+  
+
+</div>
+
+
+            <footer id="footer">
+    <p class="small">
+      Copyright © 2019, lynskylate; all rights reserved.
+    </p>
+</footer>
+        </aside>
+    </div>
+    
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+<script src="https://lynskylate.github.io/js/main.js"></script>
+<script src="https://lynskylate.github.io/js/highlight.js"></script>
+<script>hljs.initHighlightingOnLoad();</script>
+
+
+
+
+
+</body>
+</html>

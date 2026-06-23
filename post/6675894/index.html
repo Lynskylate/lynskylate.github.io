@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+	<head>
+    <meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<base href="https://lynskylate.github.io/">
+<meta name="author" content="lynskylate">
+
+<meta name="generator" content="Hugo 0.161.1">
+<title>当我们在谈论爬虫时我们在谈论什么（一）</title>
+<link rel="shortcut icon" href="https://lynskylate.github.io/images/favicon.ico" type="">
+<link rel="stylesheet" href="https://lynskylate.github.io/css/style.css">
+<link rel="stylesheet" href="https://lynskylate.github.io/css/highlight.css">
+
+
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/latest/css/font-awesome.min.css">
+
+
+
+
+
+
+
+<meta property="og:title" content="当我们在谈论爬虫时我们在谈论什么（一）">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://lynskylate.github.io/">
+
+
+  <meta property="og:image" content="https://lynskylate.github.io//images/6675894/01.png">
+
+
+
+
+<link rel="canonical" href="https://lynskylate.github.io/post/6675894/">
+
+
+
+    </head>
+<body>
+	  <header class="header">
+			<img src="https://lynskylate.github.io/images/xiaomai.jpg" alt="">
+
+		</header>
+    <nav class="main-nav">
+        <ul>
+    <li><a href='https://lynskylate.github.io/'>Articles</a></li>
+    <li><a href='https://lynskylate.github.io/about'>About</a></li>
+    <li><a href='https://lynskylate.github.io/tags'>Tags</a></li>
+    
+        <li><a href="https://lynskylate.github.io/index.xml" target="blank">Subscribe</a></li>
+    
+</ul>
+
+    </nav>
+    
+    
+    
+    <div id="site-wrapper">
+        <main>
+            
+  <article class="single">
+    <h1>当我们在谈论爬虫时我们在谈论什么（一）</h1>
+    <section class="extras">
+        <span class="tags">
+          <small class="time">April 6, 2017</small>
+          
+        </span>
+    </section>
+    <section class="description">
+      
+    </section>
+    
+    <section class="featuredImage">
+        <img src="https://lynskylate.github.io/images/6675894/01.png" alt="当我们在谈论爬虫时我们在谈论什么（一）">
+    </section>
+    
+    <section id="content" class="body">
+        <h1 id="从http协议说起">从HTTP协议说起</h1>
+<p>每一个网站就是一张巨大的蜘蛛网，有的连向别的网站的外链，就如同一根细丝连向了别的蜘蛛织成的网，而爬虫则沿着这张网络不断爬取信息。想要了解爬虫我们就必须了解他获取信息的方式，也就是HTTP协议。</p>
+<p>我们可以把连接网站的过程看作电视购物，网站的服务器如同电视购物的卖家一直在电话旁边等候着客户的电话，而我们用户链接网站的过程，相当于给卖家打电话。</p>
+<p>那么问题来了，服务器可能同时搭建了不止一个网站，或者一个网站有很多子页面，我怎么知道你需要哪个呢？不告诉卖家你需要什么货物，卖家是无法给你发货的。因此我们需要传递一条信息给卖家告诉他我们要什么。</p>
+<p>请求信息的格式</p>
+<pre><code>GET /index.html
+</code></pre>
+<p>这就是最简单的一条信息，告诉服务器，我们需要你网站的index页面。</p>
+<p>但是正如前面所说的，有的服务器可能不止有一个网站，如同一个地址可能同时开了很多家店，服务器此时就会疑惑了，哪个网站的index呢？</p>
+<p>因此我们引入了Host</p>
+<pre><code>GET /index.html HTTP/1.0
+Host: www.fuck.com
+Accept: */*
+</code></pre>
+<p>此时我们就知道你是要fuck这个网站的index页面了</p>
+<p>当然HTTP协议虽然不复杂，也有很多的内容，可以参考阮一峰文章做粗略的了解<br>
+<a href="http://www.ruanyifeng.com/blog/2016/08/http.html">HTTP 协议入门</a><br>
+也可以阅读《HTTP权威指南》作为参考</p>
+<h2 id="python连接网站">python连接网站</h2>
+<p>既然想要获取网站的内容，我们就得向他发送get的信息，爬虫是如何发送的呢？</p>
+<p>假如你有网络编程的基本知识，那么下面的文章你可以跳过，如果对于网络编程不够了解，或者对于python不够熟练，可以先了解下面的文章<br>
+<a href="http://www.cnblogs.com/aylin/p/5572104.html">python之socket编程</a><br>
+<a href="https://docs.python.org/3/library/socket.html">socket python documention</a></p>
+<pre><code>import socket
+
+def fetch(url, port):
+    sock = socket.socket()
+    sock.connect((url, port))
+    request = 'GET / HTTP/1.0\r\nHost: {}\r\n\r\n'.format(url)
+    sock.send(request.encode(&quot;ascii&quot;))
+    response = b''
+    chunk = sock.recv(4096)
+    while chunk:
+        response += chunk
+        chunk = sock.recv(4096)
+    return response
+
+print(fetch(&quot;www.baidu.com&quot;, 80))
+</code></pre>
+<p>在上面的代码中我们获取了www.baiducom这个页面的所有内容（<em>之所以选择百度，是因为它流量大，且主页并没有做任何反爬虫的措施。</em>）我们使用socket向他发送了<code>GET / HTTP/1.0\r\nHost: www.baidu.com\r\n\r\n</code>这一报文，它在接受后返回了以下报文（省略部分）和网站内容。</p>
+<pre><code>HTTP/1.1 200 OK
+Date: Thu, 06 Apr 2017 03:05:27 GMT
+Content-Type: text/html
+Content-Length: 14613
+</code></pre>
+<p>这个报文告诉了我们对于网站的请求成功了，以及网站返回的类型是html以及返回类型的大小</p>
+<h2 id="模拟真实用户的请求">模拟真实用户的请求</h2>
+<p>如何才能使自己发送的报文和浏览器发送的一致呢</p>
+<p>打开浏览器的开发者面板（F12）<br>
+选择网络<br>
+<img src="https://lynskylate.github.io/images/6675894/01.png" alt=""></p>
+<p>输入你想要爬取的网址，网络一栏如上图，会出现你与网站做的各种信息的交流<br>
+点开任意一个查看它的请求头<br>
+（FIirefox）<br>
+<img src="https://lynskylate.github.io/images/6675894/02.png" alt=""></p>
+<p>（Chrome）<br>
+<img src="https://lynskylate.github.io/images/6675894/03.png" alt=""></p>
+<p>只要在socket中填入这些信息，那么在向网站请求这一步，你所做的其实与浏览器并没有区别</p>
+<p>当然，在实际的编程中我们不可能使用这么原始的方式，python的<a href="http://docs.python-requests.org/zh_CN/latest/user/quickstart.html">requests库</a>能够简单的模拟这些请求。</p>
+<p>比如在header中加入useragent这一信息</p>
+<pre><code>import requests
+
+headers={&quot;User-Agent&quot;:&quot;Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:52.0) Gecko/20100101 Firefox/52.0&quot;}
+res = requests.get(&quot;http://www.baidu.com&quot;,headers=headers)
+</code></pre>
+<p>我们可以查看requests做了什么</p>
+<pre><code># 查看发送的请求
+res.request.headers
+#查看网站返回的报头
+res.headers
+</code></pre>
+<p>requests库入手简单，代码清晰，但是也因此封装了许多细节，从socket入手了解HTTP协议对于在实际爬取过程中抓包分析是有所帮助的。</p>
+
+    </section> 
+    
+    
+     
+  </article>
+  
+<div class="share-card">
+    <a class="twitter" href="https://twitter.com/intent/tweet?text=https%3a%2f%2flynskylate.github.io%2fpost%2f6675894%2f - %e5%bd%93%e6%88%91%e4%bb%ac%e5%9c%a8%e8%b0%88%e8%ae%ba%e7%88%ac%e8%99%ab%e6%97%b6%e6%88%91%e4%bb%ac%e5%9c%a8%e8%b0%88%e8%ae%ba%e4%bb%80%e4%b9%88%ef%bc%88%e4%b8%80%ef%bc%89 "><i class="fa fa-twitter"></i> Tweet</a>
+
+    <a class="facebook" href="#" onclick="
+        window.open(
+          'https://www.facebook.com/sharer/sharer.php?u='+encodeURIComponent(location.href),
+          'facebook-share-dialog',
+          'width=626,height=436');
+        return false;"><i class="fa fa-facebook"></i> Share
+    </a>
+</div>
+
+
+ 
+  
+  
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+
+(function() {
+    
+    
+    if (window.location.hostname == "localhost")
+        return;
+
+    var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+    var disqus_shortname = 'lynskylate';
+    dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+    (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+})();
+</script>
+<noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="http://disqus.com/" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+        </main>
+        
+        <aside class="desktop-only">
+            
+	<div class="widgets">
+  <section itemscope itemtype="https://schema.org/Person" class="widget socials">
+    <a href="https://lynskylate.github.io/about"><h2 class="widget-title">关于咸鱼博主</h2></a>
+    <div class="author-card" itemscope itemprop="author" itemtype="https://schema.org/Person">
+      <div class="author-dp">
+        <img itemprop='image' src="https://lynskylate.github.io/images/xiaomai.jpg" alt=".Site.Param.name" />
+      </div>
+      <div class="author-bio">
+        
+        <h4 class="author-title">
+          lynskylate <span itemprop="name"></span>
+        </h4>
+        
+        
+        <div class="author-description" itemprop="description">
+          Life is short, code lasts forever.
+        </div>
+        
+      </div>
+    </div>
+    <h2 class="widget-title">联系我</h2>
+    <ul>
+      
+      
+      
+      
+      <li><a href="https://github.com/lynskylate"><i class="fa fa-github"></i></a></li>
+      
+      
+      <li><a href="mailto://lynskylate@gmail.com"><i class="fa fa-envelope"></i></a></li>
+      
+    </ul>
+  </section>
+
+  
+
+</div>
+
+
+            <footer id="footer">
+    <p class="small">
+      Copyright © 2019, lynskylate; all rights reserved.
+    </p>
+</footer>
+        </aside>
+    </div>
+    
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+<script src="https://lynskylate.github.io/js/main.js"></script>
+<script src="https://lynskylate.github.io/js/highlight.js"></script>
+<script>hljs.initHighlightingOnLoad();</script>
+
+
+
+
+
+</body>
+</html>

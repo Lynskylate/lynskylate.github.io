@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+	<head>
+    <meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<base href="https://lynskylate.github.io/">
+<meta name="author" content="lynskylate">
+
+<meta name="generator" content="Hugo 0.161.1">
+<title>typing-python用于类型注解的库</title>
+<link rel="shortcut icon" href="https://lynskylate.github.io/images/favicon.ico" type="">
+<link rel="stylesheet" href="https://lynskylate.github.io/css/style.css">
+<link rel="stylesheet" href="https://lynskylate.github.io/css/highlight.css">
+
+
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/latest/css/font-awesome.min.css">
+
+
+
+
+
+
+
+<meta property="og:title" content="typing-python用于类型注解的库">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://lynskylate.github.io/">
+
+
+  <meta property="og:image" content="https://lynskylate.github.io//images/onepress-logo.jpg">
+
+
+
+
+<link rel="canonical" href="https://lynskylate.github.io/post/7594082/">
+
+
+
+    </head>
+<body>
+	  <header class="header">
+			<img src="https://lynskylate.github.io/images/xiaomai.jpg" alt="">
+
+		</header>
+    <nav class="main-nav">
+        <ul>
+    <li><a href='https://lynskylate.github.io/'>Articles</a></li>
+    <li><a href='https://lynskylate.github.io/about'>About</a></li>
+    <li><a href='https://lynskylate.github.io/tags'>Tags</a></li>
+    
+        <li><a href="https://lynskylate.github.io/index.xml" target="blank">Subscribe</a></li>
+    
+</ul>
+
+    </nav>
+    
+    
+    
+    <div id="site-wrapper">
+        <main>
+            
+  <article class="single">
+    <h1>typing-python用于类型注解的库</h1>
+    <section class="extras">
+        <span class="tags">
+          <small class="time">September 25, 2017</small>
+          
+        </span>
+    </section>
+    <section class="description">
+      
+    </section>
+    
+    <section id="content" class="body">
+        <h2 id="简介">简介</h2>
+<blockquote>
+<p>动态语言的灵活性使其在做一些工具，脚本时非常方便，但是同时也给大型项目的开发带来了一些麻烦。</p>
+</blockquote>
+<p>自python3.5开始，PEP484为python引入了类型注解(type hints),虽然在<a href="https://www.python.org/dev/peps/pep-3107">pep3107</a>定义了函数注释(function annotation)的语法,但仍然故意留下了一些未定义的行为.现在已经拥有许多对于静态类型的分析的第三方工具,而pep484引入了一个模块来提供这些工具，同时还规定一些不能使用注释(annoation)的情况</p>
+<pre><code class="language-python">#一个典型的函数注释例子，为参数加上了类型
+def greeting(name: str) -&gt; str:
+    return 'Hello ' + name
+</code></pre>
+<p>伴随着python3.6的pep526则更进一步引入了<strong>对变量类型的声明</strong>，和在以前我们只能在注释中对变量的类型进行说明</p>
+<pre><code class="language-python"># 使用注释来标明变量类型
+primes = [] # type:list[int]
+captain = ... #type:str
+
+class Starship:
+    stats = {} #type:Dict[str,int]
+</code></pre>
+<pre><code class="language-python">primes:List[int] = []
+captain:str #Note: no initial value
+
+class Starship:
+    stats: ClassVar[Dict[str,int]] = {}
+</code></pre>
+<h2 id="typing对于type-hints支持的标准库">typing&ndash;对于type hints支持的标准库</h2>
+<blockquote>
+<p>typing模块已经被加入标准库的provisional basis中，新的特性可能会增加，如果开发者认为有必要，api也可能会发生改变，即不保证向后兼容性</p>
+</blockquote>
+<p>我们已经在简介中介绍过类型注解，那么除了默认类型的int、str用于类型注解的类型有哪些呢？</p>
+<p>typing库便是一个帮助我们实现类型注解的库</p>
+<h3 id="类型别名type-alias">类型别名(type alias)</h3>
+<p>在下面这个例子中，Vector和List[float]可以视为同义词</p>
+<pre><code class="language-python">from typing import List
+Vector = List[float]
+
+def scale(scalar: float, vector: Vector)-&gt;Vector:
+    return [scalar*num for num in vector]
+
+new_vector = scale(2.0, [1.0, -4.2, 5.4])
+</code></pre>
+<p>类型别名有助于简化一些复杂的类型声明</p>
+<pre><code class="language-python">from typing import Dict, Tuple, List
+
+ConnectionOptions = Dict[str, str]
+Address = Tuple[str, int]
+Server = Tuple[Address, ConnectionOptions]
+
+def broadcast_message(message: str, servers: List[Server]) -&gt; None:
+    ...
+
+# The static type checker will treat the previous type signature as
+# being exactly equivalent to this one.
+def broadcast_message(
+        message: str,
+        servers: List[Tuple[Tuple[str, int], Dict[str, str]]]) -&gt; None:
+    pass
+</code></pre>
+<h3 id="新类型new-type">新类型(New Type)</h3>
+<p>使用NewType来辅助函数创造不同的类型</p>
+<pre><code class="language-python">form typing import NewType
+
+UserId = NewType(&quot;UserId&quot;, int)
+some_id = UserId(524313)
+</code></pre>
+<p>静态类型检查器将将新类型视为原始类型的子类。这对于帮助捕获逻辑错误非常有用</p>
+<pre><code class="language-python">def get_user_name(user_id: UserId) -&gt; str:
+    pass
+
+# typechecks
+user_a = get_user_name(UserId(42351))
+
+# does not typecheck; an int is not a UserId
+user_b = get_user_name(-1)
+</code></pre>
+<p>你仍然可以使用int类型变量的所有操作来使用UserId类型的变量，但结果返回的都是都是int类型。例如</p>
+<pre><code class="language-python"># output仍然是int类型而不是UserId类型
+output = UserId(23413) + UserId(54341)
+</code></pre>
+<p>虽然这无法阻止你使用int类型代替UserId类型，但可以避免你滥用UserId类型</p>
+<blockquote>
+<p>注意，这些检查仅仅被静态检查器强制检查，在运行时Derived = NewType(&lsquo;Derived&rsquo;,base)将派生出一个函数直接返回你传的任何参数，这意味着Derived(some_value)<strong>并不会创建任何新类或者创建任何消耗大于普通函数调用消耗的函数</strong></p>
+</blockquote>
+<p>确切地说，这个表达式 <code>some_value is Derived(some_value)</code> 在运行时总是对的。</p>
+<p>这也意味着不可能创建派生的子类型，因为它在运行时是一个标识函数，而不是一个实际类型：</p>
+<pre><code class="language-python">from typing import NewType
+
+UserId = NewType('UserId', int)
+
+# Fails at runtime and does not typecheck
+class AdminUserId(UserId): pass
+</code></pre>
+<p>然而，它可以创建一个新的类型基于衍生的NewType</p>
+<pre><code class="language-python">from typing import NewType
+
+UserId = NewType('UserId', int)
+
+ProUserId = NewType('ProUserId', UserId)
+</code></pre>
+<p>然后对于ProUserId的类型检查会如预料般工作</p>
+<blockquote>
+<p>Note:回想一下，使用类型别名声明的两个类型是完全一样的，令<code>Doing = Original</code>将会使静态类型检查时把Alias等同于Original,这个结论能够帮助你简化复杂的类型声明</p>
+<p>与Alias不同，NewType声明了另一个的子类，令<code>Derived = NewType('Derived', Original)</code>将会使静态类型检查把<code>Derived</code>看做<code>Original</code>的子类，这意味着类型<code>Original</code>不能用于类型<code>Derived</code>，这有助于使用最小的消耗来防止逻辑错误。</p>
+</blockquote>
+<h3 id="回调callable">回调(callable)</h3>
+<p>回调函数可以使用类似<code>Callable[[Arg1Type, Arg2Type],ReturnType]</code>的类型注释</p>
+<p>例如</p>
+<pre><code class="language-python">from typing import Callable
+
+def feeder(get_next_item: Callable[[], str]) -&gt; None:
+    # Body
+
+def async_query(on_success: Callable[[int], None],
+                on_error: Callable[[int, Exception], None]) -&gt; None:
+    # Body
+</code></pre>
+<p>可以通过对类型提示中的参数列表替换一个文本省略号来声明一个可调用的返回类型，而不指定调用参数，例如 <code>Callable[..., ReturnType]</code></p>
+<h3 id="泛型generics">泛型(Generics)</h3>
+<p>因为容器中的元素的类型信息由于泛型不同通过一般方式静态推断，因此抽象类被用来拓展表示容器中的元素</p>
+<pre><code class="language-python">from typing import Mapping, Sequence
+
+def notify_by_email(employees: Sequence[Employee],
+                    overrides: Mapping[str, str]) -&gt; None: ...
+</code></pre>
+<p>可以通过typing中的<code>TypeVar</code>将泛型参数化</p>
+<pre><code class="language-python">from typing import Sequence, TypeVar
+
+T = TypeVar('T')      # 申明类型变量
+
+def first(l: Sequence[T]) -&gt; T:   # Generic function
+    return l[0]
+</code></pre>
+<h3 id="用户定义泛型类型">用户定义泛型类型</h3>
+<pre><code class="language-python">from typing import TypeVar, Generic
+from logging import Logger
+
+T = TypeVar('T')
+
+class LoggedVar(Generic[T]):
+    def __init__(self, value: T, name: str, logger: Logger) -&gt; None:
+        self.name = name
+        self.logger = logger
+        self.value = value
+
+    def set(self, new: T) -&gt; None:
+        self.log('Set ' + repr(self.value))
+        self.value = new
+
+    def get(self) -&gt; T:
+        self.log('Get ' + repr(self.value))
+        return self.value
+
+    def log(self, message: str) -&gt; None:
+        self.logger.info('%s: %s', self.name, message)
+</code></pre>
+<p>定义了Generic[T]作为LoggedVar的基类，同时T也作为了方法中的参数。</p>
+<p>通过Generic基类使用元类(metaclass)定义<code>__getitem__()</code>使得<code>LoggedVar[t]</code>是有效类型</p>
+<pre><code class="language-python">from typing import Iterable
+
+def zero_all_vars(vars: Iterable[LoggedVar[int]]) -&gt; None:
+    for var in vars:
+        var.set(0)
+</code></pre>
+<p>泛型可以是任意类型的变量，但也可以被约束</p>
+<pre><code class="language-python">from typing import TypeVar, Generic
+...
+
+T = TypeVar('T')
+S = TypeVar('S', int, str)
+
+class StrangePair(Generic[T, S]):
+    ...
+</code></pre>
+<p>每个类型变量的参数必须是不同的</p>
+<p>下面是非法的</p>
+<pre><code class="language-python">from typing import TypeVar, Generic
+...
+
+T = TypeVar('T')
+
+class Pair(Generic[T, T]):   # INVALID
+    ...
+</code></pre>
+<p>你可以使用Generic实现多继承</p>
+<pre><code class="language-python">from typing import TypeVar, Generic, Sized
+
+T = TypeVar('T')
+
+class LinkedList(Sized, Generic[T]):
+    ...	
+</code></pre>
+<p>当继承泛型类时，一些类型变量可以被固定</p>
+<pre><code class="language-python">from typing import TypeVar, Mapping
+
+T = TypeVar('T')
+
+class MyDict(Mapping[str, T]):
+    ...
+</code></pre>
+<p>使用泛型类而不指定类型参数则假定每个位置都是<code>Any</code>，。在下面的例子中，myiterable不是泛型但隐式继承Iterable [Any]</p>
+<pre><code class="language-python">from typing import Iterable
+
+class MyIterable(Iterable): # Same as Iterable[Any]
+</code></pre>
+<p>还支持用户定义的泛型类型别名。实例：</p>
+<pre><code class="language-python">from typing import TypeVar, Iterable, Tuple, Union
+S = TypeVar('S')
+Response = Union[Iterable[S], int]
+
+# Return type here is same as Union[Iterable[str], int]
+def response(query: str) -&gt; Response[str]:
+    ...
+
+T = TypeVar('T', int, float, complex)
+Vec = Iterable[Tuple[T, T]]
+
+def inproduct(v: Vec[T]) -&gt; T: # Same as Iterable[Tuple[T, T]]
+    return sum(x*y for x, y in v)
+</code></pre>
+<p>Generic的元类是abc.ABCMeta的子类，泛型类可以是包含抽象方法或属性的ABC类(A generic class can be an ABC by including abstract methods or properties)</p>
+<p>同时泛型类也可以含有ABC类的方法而没有元类冲突。</p>
+<h4 id="any">Any</h4>
+<p>一种特殊的类型是。静态类型检查器将将每个类型视为与任何类型和任何类型兼容，与每个类型兼容。</p>
+<pre><code class="language-python">from typing import Any
+
+a = None    # type: Any
+a = []      # OK
+a = 2       # OK
+
+s = ''      # type: str
+s = a       # OK
+
+def foo(item: Any) -&gt; int:
+    # Typechecks; 'item' could be any type,
+    # and that type might have a 'bar' method
+    item.bar()
+    ...
+</code></pre>
+
+    </section> 
+    
+    
+     
+  </article>
+  
+<div class="share-card">
+    <a class="twitter" href="https://twitter.com/intent/tweet?text=https%3a%2f%2flynskylate.github.io%2fpost%2f7594082%2f - typing-python%e7%94%a8%e4%ba%8e%e7%b1%bb%e5%9e%8b%e6%b3%a8%e8%a7%a3%e7%9a%84%e5%ba%93 "><i class="fa fa-twitter"></i> Tweet</a>
+
+    <a class="facebook" href="#" onclick="
+        window.open(
+          'https://www.facebook.com/sharer/sharer.php?u='+encodeURIComponent(location.href),
+          'facebook-share-dialog',
+          'width=626,height=436');
+        return false;"><i class="fa fa-facebook"></i> Share
+    </a>
+</div>
+
+
+ 
+  
+  
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+
+(function() {
+    
+    
+    if (window.location.hostname == "localhost")
+        return;
+
+    var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+    var disqus_shortname = 'lynskylate';
+    dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+    (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+})();
+</script>
+<noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="http://disqus.com/" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+        </main>
+        
+        <aside class="desktop-only">
+            
+	<div class="widgets">
+  <section itemscope itemtype="https://schema.org/Person" class="widget socials">
+    <a href="https://lynskylate.github.io/about"><h2 class="widget-title">关于咸鱼博主</h2></a>
+    <div class="author-card" itemscope itemprop="author" itemtype="https://schema.org/Person">
+      <div class="author-dp">
+        <img itemprop='image' src="https://lynskylate.github.io/images/xiaomai.jpg" alt=".Site.Param.name" />
+      </div>
+      <div class="author-bio">
+        
+        <h4 class="author-title">
+          lynskylate <span itemprop="name"></span>
+        </h4>
+        
+        
+        <div class="author-description" itemprop="description">
+          Life is short, code lasts forever.
+        </div>
+        
+      </div>
+    </div>
+    <h2 class="widget-title">联系我</h2>
+    <ul>
+      
+      
+      
+      
+      <li><a href="https://github.com/lynskylate"><i class="fa fa-github"></i></a></li>
+      
+      
+      <li><a href="mailto://lynskylate@gmail.com"><i class="fa fa-envelope"></i></a></li>
+      
+    </ul>
+  </section>
+
+  
+
+</div>
+
+
+            <footer id="footer">
+    <p class="small">
+      Copyright © 2019, lynskylate; all rights reserved.
+    </p>
+</footer>
+        </aside>
+    </div>
+    
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+<script src="https://lynskylate.github.io/js/main.js"></script>
+<script src="https://lynskylate.github.io/js/highlight.js"></script>
+<script>hljs.initHighlightingOnLoad();</script>
+
+
+
+
+
+</body>
+</html>

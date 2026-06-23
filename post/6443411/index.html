@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+	<head>
+    <meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<base href="https://lynskylate.github.io/">
+<meta name="author" content="lynskylate">
+
+<meta name="generator" content="Hugo 0.161.1">
+<title>配置基于python的VIM环境</title>
+<link rel="shortcut icon" href="https://lynskylate.github.io/images/favicon.ico" type="">
+<link rel="stylesheet" href="https://lynskylate.github.io/css/style.css">
+<link rel="stylesheet" href="https://lynskylate.github.io/css/highlight.css">
+
+
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/latest/css/font-awesome.min.css">
+
+
+
+
+
+
+
+<meta property="og:title" content="配置基于python的VIM环境">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://lynskylate.github.io/">
+
+
+  <meta property="og:image" content="https://lynskylate.github.io//images/6443411/01.png">
+
+
+
+
+<link rel="canonical" href="https://lynskylate.github.io/post/6443411/">
+
+
+
+    </head>
+<body>
+	  <header class="header">
+			<img src="https://lynskylate.github.io/images/xiaomai.jpg" alt="">
+
+		</header>
+    <nav class="main-nav">
+        <ul>
+    <li><a href='https://lynskylate.github.io/'>Articles</a></li>
+    <li><a href='https://lynskylate.github.io/about'>About</a></li>
+    <li><a href='https://lynskylate.github.io/tags'>Tags</a></li>
+    
+        <li><a href="https://lynskylate.github.io/index.xml" target="blank">Subscribe</a></li>
+    
+</ul>
+
+    </nav>
+    
+    
+    
+    <div id="site-wrapper">
+        <main>
+            
+  <article class="single">
+    <h1>配置基于python的VIM环境</h1>
+    <section class="extras">
+        <span class="tags">
+          <small class="time">June 20, 2016</small>
+          
+        </span>
+    </section>
+    <section class="description">
+      
+    </section>
+    
+    <section class="featuredImage">
+        <img src="https://lynskylate.github.io/images/6443411/01.png" alt="配置基于python的VIM环境">
+    </section>
+    
+    <section id="content" class="body">
+        <h1 id="配置基于python的vim环境">配置基于python的VIM环境</h1>
+<h2 id="安装插件管理工具">安装插件管理工具</h2>
+<p>为防止过多插件管理的麻烦，首先安装vim的插件管理工具Vundle。vundle本身的github软件已经有相关的中文文档，地址如下：<br>
+<a href="https://github.com/VundleVim/Vundle.vim/blob/master/README_ZH_CN.md">vundle官方中文文档</a><br>
+复制其配置，</p>
+<pre><code class="language-vim">set nocompatible              &quot; 去除VI一致性,必须
+filetype off                  &quot; 必须
+
+&quot; 设置包括vundle和初始化相关的runtime path
+set rtp+=~/.vim/bundle/Vundle.vim
+call vundle#begin()
+&quot; 另一种选择, 指定一个vundle安装插件的路径
+&quot;call vundle#begin('~/some/path/here')
+
+&quot; 让vundle管理插件版本,必须
+Plugin 'VundleVim/Vundle.vim'
+
+&quot; 你的所有插件需要在下面这行之前
+call vundle#end()            &quot; 必须
+filetype plugin indent on    &quot; 必须 加载vim自带和插件相应的语法和文件类型相关脚本
+&quot; 忽视插件改变缩进,可以使用以下替代:
+&quot;filetype plugin on
+</code></pre>
+<p>” 将你自己对非插件片段放在这行之后<br>
+<code>call vundle#begin()</code>与<code>call vundle#end()</code><br>
+加入你要安装的插件<br>
+如果是安装github上的插件使用<br>
+<code>Plugin '用户名/仓库名'</code>即可<br>
+在本地等的插件安装请查看官方文档<br>
+在VIMRC中加入语句后，在VIM中运行PluginInstall即可</p>
+<h2 id="vimrc的基本配置">vimrc的基本配置</h2>
+<h3 id="缩进">缩进</h3>
+<p>根据PEP 8[1]，Python文件中建议用空格代替Tab，且缩进应为四个空格。要自动实现此功能，可加入：</p>
+<pre><code class="language-vim">filetype plugin indent on
+autocmd FileType python setlocal et sta sw=4 sts=4
+</code></pre>
+<p>与TAB相关的变量表</p>
+<table>
+  <thead>
+      <tr>
+          <th>变量名</th>
+          <th>缩写</th>
+          <th>含义</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>tabstop=X</td>
+          <td>ts</td>
+          <td>编辑时一个TAB字符占多少个空格的位置。</td>
+      </tr>
+      <tr>
+          <td>shiftwidth=X</td>
+          <td>sw</td>
+          <td>使用每层缩进的空格数。</td>
+      </tr>
+      <tr>
+          <td>(no)expandtab</td>
+          <td>(no)et</td>
+          <td>是否将输入的TAB自动展开成空格。开启后要输入TAB，需要Ctrl-V</td>
+      </tr>
+      <tr>
+          <td>softtabstop=X</td>
+          <td>sts</td>
+          <td>方便在开启了et后使用退格（backspace）键，每次退格将删除X个空格</td>
+      </tr>
+      <tr>
+          <td>(no)smarttab</td>
+          <td>(no)sta</td>
+          <td>开启时，在行首按TAB将加入sw个空格，否则加入ts个空格。</td>
+      </tr>
+  </tbody>
+</table>
+<h2 id="代码折叠">代码折叠</h2>
+<p>以缩进作为依据对python的代码进行折叠</p>
+<pre><code class="language-vim">autocmd FileType python setlocal foldmethod=indent
+&quot;默认展开所有代码
+set foldlevel=99
+</code></pre>
+<h2 id="安装python相关插件">安装python相关插件</h2>
+<h2 id="flake8">flake8</h2>
+<p>flake8是代码错误检查插件Pyflake和检查代码是否符合标PEP8准插件的结合<br>
+<a href="https://github.com/nvie/vim-flake8">Flake8的github地址</a><br>
+<img src="https://lynskylate.github.io/images/6443411/01.png" alt="VIM安装的配置"><br>
+第12行中插入了flake8的github地址<br>
+之后在vim中运行PluginInstall即安装成功<br>
+F7运行<br>
+使用Bundle安装PEP8后按F7我出现了找不到FLAKE8的错误<br>
+我使用pip安装FLAKE8后依然的不到解决<br>
+在查找stackoverflow的相关社区后使用包管理安装<br>
+<code>sudo pip install python-flake8</code><br>
+问题得到了解决</p>
+<h2 id="pydiction">Pydiction</h2>
+<p>Pydiction相比YCM的安装编译简单的太多了，YCM我查找了多个资料最终才得以成功。使用Vundle安装<a href="https://github.com/vim-scripts/Pydiction">Pydiction</a><br>
+在你的.vimrc中加入如下配置<br>
+<code>filetype plugin on</code><br>
+<code>let g:pydiction_location = '/home/user/.vim/bundle/pydiction/complete-dict'</code><br>
+请根据你的安装路径修改pydiction的路径<br>
+如果要更改补全出现的行数<br>
+<code>let g:pydiction_menu_height = 3</code><br>
+保存后打开py文件就有了自动补全功能</p>
+<h2 id="youcompleteme">YouCompleteMe</h2>
+<p><a href="https://github.com/Valloric/YouCompleteMe/#quick-feature-summary">YouComPlete的github地址</a><br>
+YouComPlete的安装比较复杂，即使安装之后仍然需要编译<br>
+你要安装它之前，确保你已经安装了以下必备软件<br>
+<em>build-essential</em><br>
+<em>cmake</em><br>
+<em>python-dev</em><br>
+<em>python3-dev</em><br>
+如果没有请使用包管理进行安装<br>
+<code>sudo apt-get install build-essential cmake</code><br>
+<code>sudo apt-get install python-dev python3-dev</code><br>
+由于使用Plugin方式出现了错误，我直接在<code>cd ~/.vim/bundle</code><br>
+后clone了它的仓库<br>
+<code>git clone https://github.com/Valloric/YouCompleteMe ~/.vom/bundle/YouComPleteMe</code><br>
+使用<code>git submodule update --init --recursive</code>对插件进行更新<br>
+如果不需要对C类语言（C# C++等）的支持，直接使用以下语句</p>
+<pre><code class="language-bash">cd ~/.vim/bundle/YouCompleteMe
+./install.py
+</code></pre>
+<p>即可<br>
+如果还需要对C类语言的支持</p>
+<pre><code class="language-bash">cd ~/.vim/bundle/YouCompleteMe
+./install.py --clang-completer
+</code></pre>
+<p>需要已经安装了Clang<br>
+之后，还要对YCM进行配置<br>
+具体的配置可以参考下面的网址<br>
+<a href="http://blog.jobbole.com/58978/">VIM智能补全插件YCM</a></p>
+
+    </section> 
+    
+    
+     
+  </article>
+  
+<div class="share-card">
+    <a class="twitter" href="https://twitter.com/intent/tweet?text=https%3a%2f%2flynskylate.github.io%2fpost%2f6443411%2f - %e9%85%8d%e7%bd%ae%e5%9f%ba%e4%ba%8epython%e7%9a%84VIM%e7%8e%af%e5%a2%83 "><i class="fa fa-twitter"></i> Tweet</a>
+
+    <a class="facebook" href="#" onclick="
+        window.open(
+          'https://www.facebook.com/sharer/sharer.php?u='+encodeURIComponent(location.href),
+          'facebook-share-dialog',
+          'width=626,height=436');
+        return false;"><i class="fa fa-facebook"></i> Share
+    </a>
+</div>
+
+
+ 
+  
+  
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+
+(function() {
+    
+    
+    if (window.location.hostname == "localhost")
+        return;
+
+    var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+    var disqus_shortname = 'lynskylate';
+    dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+    (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+})();
+</script>
+<noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="http://disqus.com/" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+        </main>
+        
+        <aside class="desktop-only">
+            
+	<div class="widgets">
+  <section itemscope itemtype="https://schema.org/Person" class="widget socials">
+    <a href="https://lynskylate.github.io/about"><h2 class="widget-title">关于咸鱼博主</h2></a>
+    <div class="author-card" itemscope itemprop="author" itemtype="https://schema.org/Person">
+      <div class="author-dp">
+        <img itemprop='image' src="https://lynskylate.github.io/images/xiaomai.jpg" alt=".Site.Param.name" />
+      </div>
+      <div class="author-bio">
+        
+        <h4 class="author-title">
+          lynskylate <span itemprop="name"></span>
+        </h4>
+        
+        
+        <div class="author-description" itemprop="description">
+          Life is short, code lasts forever.
+        </div>
+        
+      </div>
+    </div>
+    <h2 class="widget-title">联系我</h2>
+    <ul>
+      
+      
+      
+      
+      <li><a href="https://github.com/lynskylate"><i class="fa fa-github"></i></a></li>
+      
+      
+      <li><a href="mailto://lynskylate@gmail.com"><i class="fa fa-envelope"></i></a></li>
+      
+    </ul>
+  </section>
+
+  
+
+</div>
+
+
+            <footer id="footer">
+    <p class="small">
+      Copyright © 2019, lynskylate; all rights reserved.
+    </p>
+</footer>
+        </aside>
+    </div>
+    
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+<script src="https://lynskylate.github.io/js/main.js"></script>
+<script src="https://lynskylate.github.io/js/highlight.js"></script>
+<script>hljs.initHighlightingOnLoad();</script>
+
+
+
+
+
+</body>
+</html>

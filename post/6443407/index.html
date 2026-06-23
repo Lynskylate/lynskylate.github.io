@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+	<head>
+    <meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<base href="https://lynskylate.github.io/">
+<meta name="author" content="lynskylate">
+
+<meta name="generator" content="Hugo 0.161.1">
+<title>使用Flask-Mail发送邮件</title>
+<link rel="shortcut icon" href="https://lynskylate.github.io/images/favicon.ico" type="">
+<link rel="stylesheet" href="https://lynskylate.github.io/css/style.css">
+<link rel="stylesheet" href="https://lynskylate.github.io/css/highlight.css">
+
+
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/latest/css/font-awesome.min.css">
+
+
+
+
+
+
+
+<meta property="og:title" content="使用Flask-Mail发送邮件">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://lynskylate.github.io/">
+
+
+  <meta property="og:image" content="https://lynskylate.github.io//images/6443407/01.png">
+
+
+
+
+<link rel="canonical" href="https://lynskylate.github.io/post/6443407/">
+
+
+
+    </head>
+<body>
+	  <header class="header">
+			<img src="https://lynskylate.github.io/images/xiaomai.jpg" alt="">
+
+		</header>
+    <nav class="main-nav">
+        <ul>
+    <li><a href='https://lynskylate.github.io/'>Articles</a></li>
+    <li><a href='https://lynskylate.github.io/about'>About</a></li>
+    <li><a href='https://lynskylate.github.io/tags'>Tags</a></li>
+    
+        <li><a href="https://lynskylate.github.io/index.xml" target="blank">Subscribe</a></li>
+    
+</ul>
+
+    </nav>
+    
+    
+    
+    <div id="site-wrapper">
+        <main>
+            
+  <article class="single">
+    <h1>使用Flask-Mail发送邮件</h1>
+    <section class="extras">
+        <span class="tags">
+          <small class="time">February 7, 2017</small>
+          
+        </span>
+    </section>
+    <section class="description">
+      
+    </section>
+    
+    <section class="featuredImage">
+        <img src="https://lynskylate.github.io/images/6443407/01.png" alt="使用Flask-Mail发送邮件">
+    </section>
+    
+    <section id="content" class="body">
+        <h2 id="简介">简介</h2>
+<p>在WEB开发时，我们常常会使用到发送邮件的功能，注册时或者更换密码时，需要验证邮箱，在flask的扩展中有Flask-mai来帮助完成这一功能</p>
+<h2 id="配置">配置</h2>
+<p>flask-mail发送邮件需要你提供你的邮箱账号和密码。某些配置是发送邮箱所必须的·。大部分flask初学者一般没有云主机和域名来搭建邮箱服务器，所以我们只能使用qq等邮件服务商给你的邮箱<br>
+这里介绍了如何配置邮箱的config<br>
+开发在mail文件夹中</p>
+<pre><code class="language-python">#/app/config
+MAIL_SERVER = 'smtp.qq.com'
+MAIL_PORT = 465
+MAIL_USE_TLS = False
+MAIL_USE_SSL = True
+# 注意此处，很多人配置发不出去和这个是有关系的
+MAIL_PASSWORD = '**********'
+MAIL_USERNAME = '********@qq.com'
+</code></pre>
+<p>此处以qq邮箱为例子，我们填入了qq邮箱的服务器地址，他的邮箱服务的端口，<strong>TLS,SSL</strong>的选择–这是很多人发不出去邮件的关键之一，账号和密码–发不出去邮箱的另一个关键！<br>
+QQ邮箱是使用SSL的，然后注意QQ邮箱此处的密码不是你的<strong>qq密码</strong>！！<br>
+不是你的<strong>QQ密码</strong>！！<br>
+。。我在这个坑陷了很久~~很久 ~~很久·<br>
+这个密码你登陆<a href="http://mail.qq.com">qq邮箱</a>，选择设置，然后点击账号<br>
+<img src="https://lynskylate.github.io/images/6443407/01.png" alt="这里写图片描述"><br>
+<img src="https://lynskylate.github.io/images/6443407/02.png" alt="这里写图片描述"><br>
+邮箱的密码就是此处的授权码填入后的给你的密码。<br>
+126等邮箱发不出去也是因为其有自己的设置。</p>
+<h2 id="功能实现">功能实现</h2>
+<p>实现我们需要一个app实例</p>
+<pre><code class="language-python">#/usr/bin/env python
+# mail/app.py
+from flask import Flask
+from flask_mail import Mail, Message
+from threading import Thread
+
+
+app = Flask(__name__)
+mail = Mail(app)
+
+def send_async_email(app,msg):
+    with app.app_context():
+        mail.send()
+
+def SendMail():
+    msg = Message('test',sender='***@qq.com',\
+                        recipients=[&quot;***@example.com&quot;])
+#recipients是个列表，包含所有收件人
+#此处的test是邮箱的主题，sender和config中的MAIL_USERNAME要一致哦
+    msg.body = 'testbody'
+    msg.html = '&lt;b&gt;test&lt;/b&gt;body'
+#邮件发送给目标，可以有文本，两种方式呈现，你能看见怎样的取决于你的客户端
+    thr = Thread(target=send_async_email,args=[app,msg])
+#使用多线程，在实际开发中，若是不使用异步、多线程等方式，网页会卡住
+    thr.start()
+    return 'ok'
+</code></pre>
+<p>在当前文件夹使用python</p>
+<pre><code>&gt;&gt;from app import SendMail
+&gt;&gt;SendMail() 
+</code></pre>
+<p>邮件就会成功发出去啦</p>
+<h2 id="补充">补充</h2>
+<p>在具体实践中，发送邮箱会被抽象成一个函数，msg的body和html形式一般会使用flask的render_tempalte来渲染<br>
+发送大量邮件时，QQ、126邮箱服务器很有可能认为你在发送垃圾邮件因此发不出去。<br>
+生产环境时应当使用自己搭的邮箱服务器，或者邮箱服务商提供的企业邮箱</p>
+<h2 id="参考">参考</h2>
+<p>flask-login中文文档 <a href="http://www.pythondoc.com/flask-mail/">http://www.pythondoc.com/flask-mail/</a></p>
+
+    </section> 
+    
+    
+     
+  </article>
+  
+<div class="share-card">
+    <a class="twitter" href="https://twitter.com/intent/tweet?text=https%3a%2f%2flynskylate.github.io%2fpost%2f6443407%2f - %e4%bd%bf%e7%94%a8Flask-Mail%e5%8f%91%e9%80%81%e9%82%ae%e4%bb%b6 "><i class="fa fa-twitter"></i> Tweet</a>
+
+    <a class="facebook" href="#" onclick="
+        window.open(
+          'https://www.facebook.com/sharer/sharer.php?u='+encodeURIComponent(location.href),
+          'facebook-share-dialog',
+          'width=626,height=436');
+        return false;"><i class="fa fa-facebook"></i> Share
+    </a>
+</div>
+
+
+ 
+  
+  
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+
+(function() {
+    
+    
+    if (window.location.hostname == "localhost")
+        return;
+
+    var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+    var disqus_shortname = 'lynskylate';
+    dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+    (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+})();
+</script>
+<noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="http://disqus.com/" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+        </main>
+        
+        <aside class="desktop-only">
+            
+	<div class="widgets">
+  <section itemscope itemtype="https://schema.org/Person" class="widget socials">
+    <a href="https://lynskylate.github.io/about"><h2 class="widget-title">关于咸鱼博主</h2></a>
+    <div class="author-card" itemscope itemprop="author" itemtype="https://schema.org/Person">
+      <div class="author-dp">
+        <img itemprop='image' src="https://lynskylate.github.io/images/xiaomai.jpg" alt=".Site.Param.name" />
+      </div>
+      <div class="author-bio">
+        
+        <h4 class="author-title">
+          lynskylate <span itemprop="name"></span>
+        </h4>
+        
+        
+        <div class="author-description" itemprop="description">
+          Life is short, code lasts forever.
+        </div>
+        
+      </div>
+    </div>
+    <h2 class="widget-title">联系我</h2>
+    <ul>
+      
+      
+      
+      
+      <li><a href="https://github.com/lynskylate"><i class="fa fa-github"></i></a></li>
+      
+      
+      <li><a href="mailto://lynskylate@gmail.com"><i class="fa fa-envelope"></i></a></li>
+      
+    </ul>
+  </section>
+
+  
+
+</div>
+
+
+            <footer id="footer">
+    <p class="small">
+      Copyright © 2019, lynskylate; all rights reserved.
+    </p>
+</footer>
+        </aside>
+    </div>
+    
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+<script src="https://lynskylate.github.io/js/main.js"></script>
+<script src="https://lynskylate.github.io/js/highlight.js"></script>
+<script>hljs.initHighlightingOnLoad();</script>
+
+
+
+
+
+</body>
+</html>

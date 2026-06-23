@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+	<head>
+    <meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<base href="https://lynskylate.github.io/">
+<meta name="author" content="lynskylate">
+
+<meta name="generator" content="Hugo 0.161.1">
+<title>Opencv3.3(Linux)编译安装至python的坑</title>
+<link rel="shortcut icon" href="https://lynskylate.github.io/images/favicon.ico" type="">
+<link rel="stylesheet" href="https://lynskylate.github.io/css/style.css">
+<link rel="stylesheet" href="https://lynskylate.github.io/css/highlight.css">
+
+
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/latest/css/font-awesome.min.css">
+
+
+
+
+
+
+
+<meta property="og:title" content="Opencv3.3(Linux)编译安装至python的坑">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://lynskylate.github.io/">
+
+
+  <meta property="og:image" content="https://lynskylate.github.io//images/7719500/01.png">
+
+
+
+
+<link rel="canonical" href="https://lynskylate.github.io/post/7719500/">
+
+
+
+    </head>
+<body>
+	  <header class="header">
+			<img src="https://lynskylate.github.io/images/xiaomai.jpg" alt="">
+
+		</header>
+    <nav class="main-nav">
+        <ul>
+    <li><a href='https://lynskylate.github.io/'>Articles</a></li>
+    <li><a href='https://lynskylate.github.io/about'>About</a></li>
+    <li><a href='https://lynskylate.github.io/tags'>Tags</a></li>
+    
+        <li><a href="https://lynskylate.github.io/index.xml" target="blank">Subscribe</a></li>
+    
+</ul>
+
+    </nav>
+    
+    
+    
+    <div id="site-wrapper">
+        <main>
+            
+  <article class="single">
+    <h1>Opencv3.3(Linux)编译安装至python的坑</h1>
+    <section class="extras">
+        <span class="tags">
+          <small class="time">October 23, 2017</small>
+          
+        </span>
+    </section>
+    <section class="description">
+      
+    </section>
+    
+    <section class="featuredImage">
+        <img src="https://lynskylate.github.io/images/7719500/01.png" alt="Opencv3.3(Linux)编译安装至python的坑">
+    </section>
+    
+    <section id="content" class="body">
+        <p>编译安装OpenCV绝对是一件让人发狂的事情，CMake繁多的选项，国内蛋疼的网速，实在让人无力吐槽，然而为了使用contrib包，我不得不重新编译他。</p>
+<h2 id="opencv的编译">OpenCV的编译</h2>
+<p>其实OpenCV编译并不是很难，但是国内蛋疼的网速实在令人无法忍受，首先简述一下编译过OpenCV的过程</p>
+<p>我的编译环境是deepin15</p>
+<h3 id="准备工作">准备工作</h3>
+<p>首先我们用apt安装必备的库(虽然大部分我在之前已经安装过了 orz)</p>
+<pre><code class="language-bash">sudo apt-get install build-essential
+sudo apt-get install cmake git libgtk2.0-dev pkg-config libavcodec-dev libavformat-dev libswscale-dev
+</code></pre>
+<p>以下是可选包</p>
+<pre><code class="language-bash">sudo apt-get install python-dev python-numpy libtbb2 libtbb-dev libjpeg-dev libpng-dev libtiff-dev libjasper-dev libdc1394-22-dev
+</code></pre>
+<p>建议大家在官方文档多看下相关的参数和你需要的语言环境，根据自己具体需要来安装自己需要的包</p>
+<p>创建自己的工作目录，cd进去clone这两个库</p>
+<pre><code class="language-bash">cd ~/&lt;my_working_directory&gt;
+git clone https://github.com/opencv/opencv.git
+git clone https://github.com/opencv/opencv_contrib.git
+</code></pre>
+<p>这里需要注意，opencv和contrib<strong>必须对应</strong>否则编译会失败，因此我此处clone了最新的</p>
+<p>opencv这两个库都相当大，而github的速度相当慢，有一种方法是使用coding.net 或者Oschina导入然后clone，</p>
+<p>我在此处通过<a href="http://www.cnblogs.com/weidiao/p/6376420.html">改CDN</a>来解决访问不稳定的问题</p>
+<h3 id="使用cmake从源码构建项目">使用CMAKE从源码构建项目</h3>
+<p>1.创建临时目录用来存储我们编译后的opencv库，你可以随意命名，我这用&lt;cmake_build_dir&gt;来表示这个目录。</p>
+<pre><code class="language-bash">cd ~/opencv
+mkdir build
+cd build
+</code></pre>
+<p>2.构建项目</p>
+<pre><code class="language-bash">cmake -D CMAKE_BUILD_TYPE=Release -D CMAKE_INSTALL_PREFIX=/usr/local ..
+</code></pre>
+<p>这里列举了最基础的两个参数，编译类型和安装目录。</p>
+<p>我这里推荐使用cmake-gui来构建，他能清晰列出可选参数，根据自己需求选择就行。</p>
+<blockquote>
+<p>安装cmake-gui</p>
+<pre><code class="language-bash"></code></pre>
+</blockquote>
+<p>sudo apt-get install cmake-qt-gui
+cmake-gui</p>
+<pre><code>
+这里不多赘述cmake-gui的使用，只是列出我使用的参数
+
+```bash
+cmake -D CMAKE_BUILD_TYPE=Release \
+-D CMAKE_INSTALL_PREFIX=/usr/local \
+-D OPENCV_EXTRA_MODULES=../../opencv_contrib/modules \
+-D WITH_LIBV4L=ON \
+-D WITH_CUDA=OFF \
+..
+</code></pre>
+<p>稍微解释一下，我之前使用pytorch等深度学习库时，安装过CUDA，但是cmake的自动配置有问题，因此我关闭了CUDA，使用默认的OPENCL</p>
+<p>LIBV4L是因为构建时找不到videoio.h这个库，因此可以使用下面的命令来解决</p>
+<pre><code class="language-bash">sudo apt-get install libv4l-dev
+</code></pre>
+<p>若是还不能解决可以加入<code>WITH_V4L=OFF</code>这个参数</p>
+<p>3.python相关的参数</p>
+<p>若是想指定你的python库安装路径请在此处指定参数</p>
+<pre><code class="language-bash">PYTHON2(3)_EXECUTABLE = &lt;path to python&gt;#python执行路径
+PYTHON_INCLUDE_DIR = /usr/include/python&lt;version&gt;#python库所在路径
+PYTHON_INCLUDE_DIR2 = /usr/include/x86_64-linux-gnu/python&lt;version&gt;
+PYTHON_LIBRARY = /usr/lib/x86_64-linux-gnu/libpython&lt;version&gt;.so #python本身的动态链接文件
+PYTHON2(3)_NUMPY_INCLUDE_DIRS = /usr/lib/python&lt;version&gt;/dist-packages/numpy/core/include/ #NUMPY所在位置
+</code></pre>
+<p>因为每个人之前的环境不一样，你可能要补全一些环境</p>
+<pre><code class="language-bash">sudo apt-get install python-numpy
+sudo apt-get install python3-numpy
+sudo apt-get install libpython-dev libpython3-dev
+</code></pre>
+<p>4.然后就可以等待愉快的配置了。。。。。个头！！！！！！</p>
+<p>国内环境实在太他蛋疼了！！！！！！！！！！！！！！！正值大会，我的**在开会前一天突然全部变红，更是令人蛋疼</p>
+<p>IPPICV就是一个那么令我蛋疼的库，只能直接下载下来放进去了，唉,我的CMAKE配置会将下载的库 放在编译目录的.cache文件夹中，下下来对文件名进行hash放进去就好了,这个库下载的网址是<a href="https://raw.githubusercontent.com/opencv/opencv_3rdparty/a62e20676a60ee0ad6581e217fe7e4bada3b95db/ippicv/ippicv_2017u2_lnx_intel64_20170418.tgz">https://raw.githubusercontent.com/opencv/opencv_3rdparty/a62e20676a60ee0ad6581e217fe7e4bada3b95db/ippicv/ippicv_2017u2_lnx_intel64_20170418.tgz</a></p>
+<p>,实践关系我们需要对标自己实际情况进行更改。这个库存的目录在这 <a href="https://github.com/opencv/opencv_3rdparty">https://github.com/opencv/opencv_3rdparty</a> ，默认的主分支只提供了readme，你需要更改分支到和你opencv对应的分支下载。</p>
+<p>参考了<a href="http://www.linuxfromscratch.org/blfs/view/cvs/general/opencv.html">这篇文章</a></p>
+<pre><code class="language-bash">ipp_file=ippicv_2017u2_lnx_intel64_20170418.tgz &amp;&amp;
+ipp_hash=$(md5sum ../$ipp_file | cut -d&quot; &quot; -f1) &amp;&amp;
+ipp_dir=.cache/ippicv                           &amp;&amp;
+
+mkdir -p $ipp_dir &amp;&amp;
+cp ../$ipp_file $ipp_dir/$ipp_hash-$ipp_file
+</code></pre>
+<p>在opencv目录下进行如上命令即可</p>
+<p>可能有些人处出现ffmpeg无法下载的情况，一般使用apt大法</p>
+<pre><code class="language-bash">sudo apt-get install ffmpeg-dev
+</code></pre>
+<p>基本可以解决</p>
+<h3 id="编译与安装">编译与安装</h3>
+<p>编译</p>
+<p>我在此处没有任何问题，直接</p>
+<pre><code class="language-bash">make -j4
+</code></pre>
+<p>安装</p>
+<pre><code class="language-bash">sudo make install
+</code></pre>
+<h2 id="anaconda安装cv2">anaconda安装cv2</h2>
+<p>在anaconda安装cv2时出现了个神奇的错误,在命令行调用完美,在使用jupyter时却出现问题</p>
+<h3 id="安装">安装</h3>
+<p>其实默认得make install已经将cv2安装至python目录下了，但是我要安装的是anaconda的python，恰巧anaconda的环境变量我是放在系统的python环境变量下的，平时使用source activate root来使用，自然make install并没有进行安装。</p>
+<p><img src="https://lynskylate.github.io/images/7719500/01.png" alt=""></p>
+<p>我们在此处可以拷贝make这一步生成的opencv的动态链接文件</p>
+<p>如图 我们将其拷贝至anaconda默认python的库目录下</p>
+<pre><code class="language-bash">cp cv2.cpython-35m-x86_64-linux-gnu.so ~/anaconda3/lib/python3.6/site-packages/cv.so
+</code></pre>
+<p><img src="https://lynskylate.github.io/images/7719500/02.png" alt=""></p>
+<p>之后我使用默认的python调用cv完全没有问题，但是奇怪的是在jupyter notebook出现了很奇妙的问题</p>
+<h3 id="jupyter-notebook-import-error">jupyter notebook import Error</h3>
+<p>我在jupyter调用cv2时出现import error这一报错</p>
+<pre><code class="language-dabash">Import error GLIBCXX_3.4.21 not found when importing cv2
+</code></pre>
+<p>大概就是上面这样子的，没有保存当时报错的截图</p>
+<p>GLIBCXX的问题是libgcc链接可能在gcc版本更新后链接没更新导致的，一般anaconda使用万能句法</p>
+<pre><code class="language-bash">conda install libgcc
+</code></pre>
+<p>但是这次并没有解决,</p>
+<p>使用下面句子检查conda默认的libgcc的链接</p>
+<pre><code class="language-bash">ldd anaconda3/lib/libstdgcc.so.6
+</code></pre>
+<p>或者</p>
+<pre><code class="language-bash">strings anaconda3/lib/libstdgcc.so.6 | grep GLIBCXX
+</code></pre>
+<p>如果缺少对应GLIBCXX,使用软链接进行链接</p>
+<pre><code class="language-bash">cd anaconda3/lib/
+mv libstdc++.so.6 libstdc++.so.6.old
+ln -s /usr/lib64/libstdc++.so.6  libstdc++.so.6
+</code></pre>
+<p>就当我信心满满的打开jupyter使用import cv2时</p>
+<p>现实给了我一个狠狠的耳光,import error,这就很尴尬了,到底怎么解决?</p>
+<h3 id="更改核">更改核</h3>
+<p>在python的命令行可以运行,jupyter 却没法运行,是不是可能jupyter核设置有些问题?</p>
+<p>不同环境下kenels存在的目录可能不同,一下是官方提供的可能的位置.</p>
+<p><img src="https://lynskylate.github.io/images/7719500/03.png" alt=""></p>
+<p>我的kernel目录在<code>anaconda3/share/jupyter/kernels/</code>,打开anaconda3/share/jupyter/kernels/python3目录下的kenel.json进行编辑</p>
+<p>修改前</p>
+<p><img src="https://lynskylate.github.io/images/7719500/04.png" alt=""></p>
+<p>修改后</p>
+<p><img src="https://lynskylate.github.io/images/7719500/05.png" alt=""></p>
+<p>打开jupyter notebook 运行 import cv2</p>
+<p>一切正常.opencv的编译安装终于结束了</p>
+<h2 id="后记">后记</h2>
+<p>虽然不知道为什么把环境变量的python改成绝对路径就ok了(也许是anaconda的python在环境变量的顺序在系统后面的原因),但是管他呢,我特码再也不想配置opencv了.</p>
+<p>GFW真(和谐和谐)</p>
+
+    </section> 
+    
+    
+     
+  </article>
+  
+<div class="share-card">
+    <a class="twitter" href="https://twitter.com/intent/tweet?text=https%3a%2f%2flynskylate.github.io%2fpost%2f7719500%2f - Opencv3.3%28Linux%29%e7%bc%96%e8%af%91%e5%ae%89%e8%a3%85%e8%87%b3python%e7%9a%84%e5%9d%91 "><i class="fa fa-twitter"></i> Tweet</a>
+
+    <a class="facebook" href="#" onclick="
+        window.open(
+          'https://www.facebook.com/sharer/sharer.php?u='+encodeURIComponent(location.href),
+          'facebook-share-dialog',
+          'width=626,height=436');
+        return false;"><i class="fa fa-facebook"></i> Share
+    </a>
+</div>
+
+
+ 
+  
+  
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+
+(function() {
+    
+    
+    if (window.location.hostname == "localhost")
+        return;
+
+    var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+    var disqus_shortname = 'lynskylate';
+    dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+    (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+})();
+</script>
+<noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="http://disqus.com/" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+        </main>
+        
+        <aside class="desktop-only">
+            
+	<div class="widgets">
+  <section itemscope itemtype="https://schema.org/Person" class="widget socials">
+    <a href="https://lynskylate.github.io/about"><h2 class="widget-title">关于咸鱼博主</h2></a>
+    <div class="author-card" itemscope itemprop="author" itemtype="https://schema.org/Person">
+      <div class="author-dp">
+        <img itemprop='image' src="https://lynskylate.github.io/images/xiaomai.jpg" alt=".Site.Param.name" />
+      </div>
+      <div class="author-bio">
+        
+        <h4 class="author-title">
+          lynskylate <span itemprop="name"></span>
+        </h4>
+        
+        
+        <div class="author-description" itemprop="description">
+          Life is short, code lasts forever.
+        </div>
+        
+      </div>
+    </div>
+    <h2 class="widget-title">联系我</h2>
+    <ul>
+      
+      
+      
+      
+      <li><a href="https://github.com/lynskylate"><i class="fa fa-github"></i></a></li>
+      
+      
+      <li><a href="mailto://lynskylate@gmail.com"><i class="fa fa-envelope"></i></a></li>
+      
+    </ul>
+  </section>
+
+  
+
+</div>
+
+
+            <footer id="footer">
+    <p class="small">
+      Copyright © 2019, lynskylate; all rights reserved.
+    </p>
+</footer>
+        </aside>
+    </div>
+    
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+<script src="https://lynskylate.github.io/js/main.js"></script>
+<script src="https://lynskylate.github.io/js/highlight.js"></script>
+<script>hljs.initHighlightingOnLoad();</script>
+
+
+
+
+
+</body>
+</html>

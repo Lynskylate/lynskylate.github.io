@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+	<head>
+    <meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<base href="https://lynskylate.github.io/">
+<meta name="author" content="lynskylate">
+
+<meta name="generator" content="Hugo 0.161.1">
+<title>在CNN上增加一层CAM告诉你CNN到底关注什么</title>
+<link rel="shortcut icon" href="https://lynskylate.github.io/images/favicon.ico" type="">
+<link rel="stylesheet" href="https://lynskylate.github.io/css/style.css">
+<link rel="stylesheet" href="https://lynskylate.github.io/css/highlight.css">
+
+
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/latest/css/font-awesome.min.css">
+
+
+
+
+
+
+
+<meta property="og:title" content="在CNN上增加一层CAM告诉你CNN到底关注什么">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://lynskylate.github.io/">
+
+
+  <meta property="og:image" content="https://lynskylate.github.io//images/7966171/01.png">
+
+
+
+
+<link rel="canonical" href="https://lynskylate.github.io/post/7966171/">
+
+
+<script>
+  MathJax = {
+    tex: {
+      inlineMath: [['$', '$'], ['\\(', '\\)']],
+      displayMath: [['$$', '$$'], ['\\[', '\\]']],
+      processEscapes: true
+    },
+    svg: { fontCache: 'global' }
+  };
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" id="MathJax-script" async></script>
+
+
+    </head>
+<body>
+	  <header class="header">
+			<img src="https://lynskylate.github.io/images/xiaomai.jpg" alt="">
+
+		</header>
+    <nav class="main-nav">
+        <ul>
+    <li><a href='https://lynskylate.github.io/'>Articles</a></li>
+    <li><a href='https://lynskylate.github.io/about'>About</a></li>
+    <li><a href='https://lynskylate.github.io/tags'>Tags</a></li>
+    
+        <li><a href="https://lynskylate.github.io/index.xml" target="blank">Subscribe</a></li>
+    
+</ul>
+
+    </nav>
+    
+    
+    
+    <div id="site-wrapper">
+        <main>
+            
+  <article class="single">
+    <h1>在CNN上增加一层CAM告诉你CNN到底关注什么</h1>
+    <section class="extras">
+        <span class="tags">
+          <small class="time">December 3, 2017</small>
+          
+        </span>
+    </section>
+    <section class="description">
+      
+    </section>
+    
+    <section class="featuredImage">
+        <img src="https://lynskylate.github.io/images/7966171/01.png" alt="在CNN上增加一层CAM告诉你CNN到底关注什么">
+    </section>
+    
+    <section id="content" class="body">
+        <p>Cam(Class Activation Mapping)是一个很有意思的算法，他能够将神经网络到底在关注什么可视化的表现出来。但同时它的实现却又如此简介，相比NIN，googLenet这些使用GAP（Global Average Pooling）用来代替全连接层，他却将其输出的权重和featuremap相乘，累加，将其用图像表示出来。<br>
+其网络架构如下<br>
+<img src="http://cnnlocalization.csail.mit.edu/framework.jpg" alt=""><br>
+<a href="https://arxiv.org/pdf/1512.04150.pdf">Class Activation Mapping具体论文</a></p>
+<p>当然Cam的目的并不仅仅是将其表示出来，神经网络所关注的地方，通常就是物体所在的地方，因此它可以辅助训练检测网络。<br>
+因此就有了PlacesNet。</p>
+<p><a href="http://places2.csail.mit.edu/PAMI_places.pdf">论文</a></p>
+<p><a href="http://places2.csail.mit.edu/demo.html">在这里可以体验</a></p>
+<p>网络上基本都是基于AlexNet等网络，其实任何网络，只要加一层全局池化层就可以帮助我们将CNN关注什么表示出来，因此我对Tensorflow官方Mnist的CNN网络进行少量的修改，实现了CAM。只是将最后的全连接层，改为了全局池化层。</p>
+<p>CAM的核心公式很简单</p>
+<p>$$S_c = \sum_{k} {W_k^c} {\sum_{x,y} {f_k(x,y)}}
+$$</p>
+<p>将全局平均池化层输出的权重乘上feature map累加</p>
+<pre><code class="language-python">import tensorflow as tf
+from tensorflow.examples.tutorials.mnist import input_data
+import matplotlib.pyplot as plt
+import numpy as np
+%matplotlib inline
+
+mnist = input_data.read_data_sets(&quot;/tmp/data/&quot;, one_hot=True)
+</code></pre>
+<p>/home/lyn/anaconda3/lib/python3.6/importlib/_bootstrap.py:205: RuntimeWarning: compiletime version 3.5 of module &rsquo;tensorflow.python.framework.fast_tensor_util&rsquo; does not match runtime version 3.6<br>
+return f(*args, **kwds)</p>
+<p>Extracting /tmp/data/train-images-idx3-ubyte.gz<br>
+Extracting /tmp/data/train-labels-idx1-ubyte.gz<br>
+Extracting /tmp/data/t10k-images-idx3-ubyte.gz<br>
+Extracting /tmp/data/t10k-labels-idx1-ubyte.gz</p>
+<p>在读入数据后，设定基本的学习参数</p>
+<pre><code class="language-python"># Training Parameters
+learning_rate = 0.001
+num_steps = 10000
+batch_size = 128
+display_step = 10
+
+# Network Parameters
+num_input = 784 # MNIST data input (img shape: 28*28)
+num_classes = 10 # MNIST total classes (0-9 digits)
+
+# tf Graph input
+X = tf.placeholder(tf.float32, [None, num_input])
+Y = tf.placeholder(tf.int32, [None, num_classes])
+</code></pre>
+<pre><code class="language-python"># Create some wrappers for simplicity
+def conv2d(x, W, b, strides=1):
+    # Conv2D wrapper, with bias and relu activation
+    x = tf.nn.conv2d(x, W, strides=[1, strides, strides, 1], padding='SAME')
+    x = tf.nn.bias_add(x, b)
+    return tf.nn.relu(x)
+
+
+def maxpool2d(x, k=2):
+    # MaxPool2D wrapper
+    return tf.nn.max_pool(x, ksize=[1, k, k, 1], strides=[1, k, k, 1],
+                          padding='SAME')
+</code></pre>
+<p>在实际使用中我们需要获得得feature map，与全局池化层相乘并累加</p>
+<pre><code class="language-python">def conv_layers(x,weights,biases):
+    x = tf.reshape(x, shape=[-1, 28, 28, 1])
+
+    # Convolution Layer
+    conv1 = conv2d(x, weights['wc1'], biases['bc1'])
+    # Max Pooling (down-sampling)
+    conv1 = maxpool2d(conv1, k=2)
+    # Convolution Layer
+    conv2 = conv2d(conv1, weights['wc2'], biases['bc2'])
+    # Max Pooling (down-sampling)
+    conv2 = maxpool2d(conv2, k=2)
+    return conv2
+
+def out_layer(conv2,weights,biases):
+    gap = tf.nn.avg_pool(conv2,ksize=[1,7,7,1],strides=[1,7,7,1],padding=&quot;SAME&quot;)
+    gap = tf.reshape(gap,[-1,128])
+    out = tf.add(tf.matmul(gap, weights['out']), biases['out'])
+    return out
+
+def generate_heatmap(conv2,label,weights):
+    conv2_resized = tf.image.resize_images(conv2,[28,28])
+    label_w = tf.gather(tf.transpose(weights['out']),label)
+    label_w = tf.reshape(label_w,[-1,128,1])
+    conv2_resized = tf.reshape(conv2_resized,[-1,28*28,128])
+    classmap = tf.matmul( conv2_resized, label_w )
+    classmap = tf.reshape( classmap, [-1, 28,28] )
+    return classmap
+</code></pre>
+<pre><code class="language-python"># Store layers weight &amp; bias
+weights = {
+    # 5x5 conv, 1 input, 32 outputs
+    'wc1': tf.Variable(tf.random_normal([5, 5, 1, 32])),
+    # 5x5 conv, 32 inputs, 64 outputs
+    'wc2': tf.Variable(tf.random_normal([5, 5, 32, 128])),
+    'out': tf.Variable(tf.random_normal([128, num_classes]))
+}
+
+biases = {
+    'bc1': tf.Variable(tf.random_normal([32])),
+    'bc2': tf.Variable(tf.random_normal([128])),
+    'bd1': tf.Variable(tf.random_normal([1024])),
+    'out': tf.Variable(tf.random_normal([num_classes]))
+}
+
+# Construct model
+conv2 = conv_layers(X, weights, biases)
+logits = out_layer(conv2,weights, biases)
+prediction = tf.nn.softmax(logits)
+classmap = generate_heatmap(conv2,tf.argmax(prediction,1),weights)
+loss_op = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(
+    logits=logits, labels=Y))
+optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate)
+train_op = optimizer.minimize(loss_op)
+
+
+# Evaluate model
+correct_pred = tf.equal(tf.argmax(prediction, 1), tf.argmax(Y, 1))
+accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
+
+# Initialize the variables (i.e. assign their default value)
+init = tf.global_variables_initializer()
+</code></pre>
+<pre><code class="language-python">sess = tf.Session()
+sess.run(init)
+
+for step in range(1, num_steps+1):
+    batch_x, batch_y = mnist.train.next_batch(batch_size)
+    # Run optimization op (backprop)
+    sess.run(train_op, feed_dict={X: batch_x, Y: batch_y})
+    if step % display_step == 0 or step == 1:
+        # Calculate batch loss and accuracy
+        loss, acc = sess.run([loss_op, accuracy], feed_dict={X: batch_x,
+                                                             Y: batch_y})
+        print(&quot;Step &quot; + str(step) + &quot;, Minibatch Loss= &quot; + \
+              &quot;{:.4f}&quot;.format(loss) + &quot;, Training Accuracy= &quot; + \
+              &quot;{:.3f}&quot;.format(acc))
+
+print(&quot;Optimization Finished!&quot;)
+
+# Calculate accuracy for 256 MNIST test images
+print(&quot;Testing Accuracy:&quot;, \
+    sess.run(accuracy, feed_dict={X: mnist.test.images[:256],
+                                  Y: mnist.test.labels[:256],}
+            ))
+sess.run(conv2,feed_dict={X:mnist.test.images[:10],Y:mnist.test.labels[:10]})
+classmaps = sess.run(classmap,feed_dict={X:mnist.test.images[:10],Y:mnist.test.labels[:10]})
+</code></pre>
+<p>Testing Accuracy: 0.976562</p>
+<pre><code class="language-python">for i in range(9):
+    plt.subplot(33*10+i+1)
+    plt.axis(&quot;off&quot;)
+    plt.imshow(classmaps[i],cmap=&quot;gray&quot;)
+    plt.title(&quot;label is&quot;+str(np.argmax(mnist.test.labels[i])))
+</code></pre>
+<p><img src="https://lynskylate.github.io/images/7966171/01.png" alt="png"></p>
+<p>黑色为正权重点，白色为负权重点。</p>
+<p>当然由于网络太浅，使用了全局平均池化以后，训练时间大大增长，准确率也不如之前。</p>
+
+    </section> 
+    
+    
+     
+  </article>
+  
+<div class="share-card">
+    <a class="twitter" href="https://twitter.com/intent/tweet?text=https%3a%2f%2flynskylate.github.io%2fpost%2f7966171%2f - %e5%9c%a8CNN%e4%b8%8a%e5%a2%9e%e5%8a%a0%e4%b8%80%e5%b1%82CAM%e5%91%8a%e8%af%89%e4%bd%a0CNN%e5%88%b0%e5%ba%95%e5%85%b3%e6%b3%a8%e4%bb%80%e4%b9%88 "><i class="fa fa-twitter"></i> Tweet</a>
+
+    <a class="facebook" href="#" onclick="
+        window.open(
+          'https://www.facebook.com/sharer/sharer.php?u='+encodeURIComponent(location.href),
+          'facebook-share-dialog',
+          'width=626,height=436');
+        return false;"><i class="fa fa-facebook"></i> Share
+    </a>
+</div>
+
+
+ 
+  
+  
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+
+(function() {
+    
+    
+    if (window.location.hostname == "localhost")
+        return;
+
+    var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+    var disqus_shortname = 'lynskylate';
+    dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+    (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+})();
+</script>
+<noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="http://disqus.com/" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+        </main>
+        
+        <aside class="desktop-only">
+            
+	<div class="widgets">
+  <section itemscope itemtype="https://schema.org/Person" class="widget socials">
+    <a href="https://lynskylate.github.io/about"><h2 class="widget-title">关于咸鱼博主</h2></a>
+    <div class="author-card" itemscope itemprop="author" itemtype="https://schema.org/Person">
+      <div class="author-dp">
+        <img itemprop='image' src="https://lynskylate.github.io/images/xiaomai.jpg" alt=".Site.Param.name" />
+      </div>
+      <div class="author-bio">
+        
+        <h4 class="author-title">
+          lynskylate <span itemprop="name"></span>
+        </h4>
+        
+        
+        <div class="author-description" itemprop="description">
+          Life is short, code lasts forever.
+        </div>
+        
+      </div>
+    </div>
+    <h2 class="widget-title">联系我</h2>
+    <ul>
+      
+      
+      
+      
+      <li><a href="https://github.com/lynskylate"><i class="fa fa-github"></i></a></li>
+      
+      
+      <li><a href="mailto://lynskylate@gmail.com"><i class="fa fa-envelope"></i></a></li>
+      
+    </ul>
+  </section>
+
+  
+
+</div>
+
+
+            <footer id="footer">
+    <p class="small">
+      Copyright © 2019, lynskylate; all rights reserved.
+    </p>
+</footer>
+        </aside>
+    </div>
+    
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+<script src="https://lynskylate.github.io/js/main.js"></script>
+<script src="https://lynskylate.github.io/js/highlight.js"></script>
+<script>hljs.initHighlightingOnLoad();</script>
+
+
+
+
+
+</body>
+</html>

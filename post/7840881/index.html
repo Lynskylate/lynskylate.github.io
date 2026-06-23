@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+	<head>
+    <meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<base href="https://lynskylate.github.io/">
+<meta name="author" content="lynskylate">
+
+<meta name="generator" content="Hugo 0.161.1">
+<title>python数字图像处理（二）关键镜头检测</title>
+<link rel="shortcut icon" href="https://lynskylate.github.io/images/favicon.ico" type="">
+<link rel="stylesheet" href="https://lynskylate.github.io/css/style.css">
+<link rel="stylesheet" href="https://lynskylate.github.io/css/highlight.css">
+
+
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/latest/css/font-awesome.min.css">
+
+
+
+
+
+
+
+<meta property="og:title" content="python数字图像处理（二）关键镜头检测">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://lynskylate.github.io/">
+
+
+  <meta property="og:image" content="https://lynskylate.github.io//images/7840881/01.png">
+
+
+
+
+<link rel="canonical" href="https://lynskylate.github.io/post/7840881/">
+
+
+
+    </head>
+<body>
+	  <header class="header">
+			<img src="https://lynskylate.github.io/images/xiaomai.jpg" alt="">
+
+		</header>
+    <nav class="main-nav">
+        <ul>
+    <li><a href='https://lynskylate.github.io/'>Articles</a></li>
+    <li><a href='https://lynskylate.github.io/about'>About</a></li>
+    <li><a href='https://lynskylate.github.io/tags'>Tags</a></li>
+    
+        <li><a href="https://lynskylate.github.io/index.xml" target="blank">Subscribe</a></li>
+    
+</ul>
+
+    </nav>
+    
+    
+    
+    <div id="site-wrapper">
+        <main>
+            
+  <article class="single">
+    <h1>python数字图像处理（二）关键镜头检测</h1>
+    <section class="extras">
+        <span class="tags">
+          <small class="time">November 15, 2017</small>
+          
+        </span>
+    </section>
+    <section class="description">
+      
+    </section>
+    
+    <section class="featuredImage">
+        <img src="https://lynskylate.github.io/images/7840881/01.png" alt="python数字图像处理（二）关键镜头检测">
+    </section>
+    
+    <section id="content" class="body">
+        <h1 id="镜头边界检测技术简述">镜头边界检测技术简述</h1>
+<h2 id="介绍">介绍</h2>
+<p>作为视频最基本的单元帧(Frame)，它的本质其实就是图片，一系列帧通过某种顺序组成在一起就构成了视频。<strong>镜头边界</strong>是视频相邻两帧出现了某种意义的变化，即镜头边界反映了视频内容的不连续性。这种变化反映了某些关键信息，通过设定不同的检测指标，我们能够得到这些关键信息的变化。因此镜头边界检测技术(Shot Bound Detection)的<strong>实质</strong>即<strong>设定一个检测指标</strong>来获取我们需要的<strong>关键信息</strong>。这种关键信息在不同任务中的体现使不一样的，动作识别中我们需要能检测动作变化的镜头边界，视频索引任务中我们需要能够表现这个视频整体的视频边界，这就有赖于人为选择检测算法。虽然随着深度学习的兴起，人们开始将深度学习应用在镜头边界检测上，但是传统图像处理方法的镜头边界检测技术仍然有着广泛的，本文旨在对一些常见的镜头边界检测技术进行简述。</p>
+<h2 id="连续帧相减法">连续帧相减法</h2>
+<h3 id="连续帧相减法实现">连续帧相减法实现</h3>
+<p>一帧本质就是一张图片，因此衡量两帧之间变化本质就是衡量两张图片的区别。在KNN算法中衡量两张图片之间相似度就是图片对应像素相减之和，将其累加，值最小的即最接近的两张图片。连续帧相减法中，我们同样使用这个指标来评价两张图片的近似度，一旦区别大到一定地步则认为该两帧是镜头边界。</p>
+<p>读入视频连续的三帧</p>
+<p><img src="https://lynskylate.github.io/images/7840881/01.png" alt=""></p>
+<p>我们可以清除的看到前两帧的图片几乎一样，第三帧则发生了颜色逆转，可以认为这是该视频的关键镜头。事实上，作为静止系mad，这里也确实是一个小高潮。</p>
+<blockquote>
+<p>图像来自于bilibili，可以点击这里查看<a href="https://www.bilibili.com/video/av15729106/">你就是我的真物</a></p>
+</blockquote>
+<p>我们使用连续帧相减法来计算彼此之间的差别,画出他们的差距图</p>
+<pre><code class="language-python">def diffimage(src_1,src_2):
+    #将numpy的基础类型转化为int型否则uint8会发生溢出
+    src_1 = src_1.astype(np.int)
+    src_2 = src_2.astype(np.int)
+    diff = abs(src_1 - src_2)
+    return diff.astype(np.uint8)
+</code></pre>
+<p>计算第二张图片与第一张图片差值，第二张图片与第三张图片差值，并使用matplotlib画出来</p>
+<p><img src="https://lynskylate.github.io/images/7840881/02.png" alt=""></p>
+<p>但是奇怪的是肉眼看不出来的图一和图二（实际上图一相比图二图上的内容有轻微的缺少，同时相比图二，图一有轻微的放大），之间的差别也是相当大。</p>
+<h1 id="使用npsum取得到的diff之和">使用np.sum取得到的diff之和</h1>
+<p>图一与图二之间的像素点对应差距值之和 7777617<br>
+图二与三之间的像素点对应差距值之和 131587585</p>
+<p>这就是连续帧相减法的一个缺陷对于运动目标的过于敏感，图一与图二之间是有轻微的缩放的，而图二与图三更多的只是颜色上的翻转，这极大影响了连续帧相减法检测的准确性，如何减少这些运动对帧相减法的影响？</p>
+<h3 id="使用均值滤波处理后使用连续帧相减法">使用均值滤波处理后使用连续帧相减法</h3>
+<p>使相对小的平移被忽略的一个直观的方法就是每个像素点取附近的均值，使用均值滤波器能够忽略一些无用的细节。使用通用3*3的卷积核在进行连续帧相减法查看效果。</p>
+<pre><code class="language-python">blur_image1 = cv2.blur(image1,ksize=(3,3))
+blur_image2 = cv2.blur(image2,ksize=(3,3))
+blur_image3 = cv2.blur(image3,ksize=(3,3))
+#省略画子图代码
+</code></pre>
+<p><img src="https://lynskylate.github.io/images/7840881/03.png" alt=""></p>
+<pre><code class="language-python">cross1 = diffimage(blur_image1,blur_image2)
+cross2 = diffimage(blur_image3,blur_image2)
+</code></pre>
+<p><img src="https://lynskylate.github.io/images/7840881/04.png" alt=""><br>
+图一与图二之间的像素点对应差距值之和 6894882<br>
+图二与三之间的像素点对应差距值之和 130940724</p>
+<p>从上面的结果与一开始的对比，均值滤波确实减弱了缩放对于两帧差距的影响，但是减弱效果并不理想，因此我们可以得出连续帧相减法的不足，对于运动物体，缩放，平移过于敏感</p>
+<h3 id="使用连续帧相减法检测监控视频">使用连续帧相减法检测监控视频</h3>
+<p>相比上例，对监控视频使用连续帧相减法效果显著，考虑到监控器通常监控的区域的变化几乎不变，人的运动能够被轻易的检测出来，而通常检测监控视频中人的出现是通常的需求，我们使用连续帧相减法进行检测。</p>
+<pre><code class="language-python">#核心代码即存储上一帧图像与现在图像进行帧相减法
+ret, lastframe = cap.read()
+while(cap.isOpened()):
+    ret, frame = cap.read()
+    if not ret:
+        break
+    if np.sum(diffimage(lastframe,frame))/frame.size &gt; 10:
+        #设定的阈值
+        cv2.imwrite(str(uuid.uuid1())+&quot;.jpg&quot;,frame)
+    lastframe = frame
+    cv2.imshow('frame',frame)
+    if cv2.waitKey(1) &amp; 0xFF == ord('q'):
+        break
+</code></pre>
+<p>使用连续帧相减法得到关键帧的其中一张如下(具体代码可以参见配套代码)</p>
+<p><img src="https://lynskylate.github.io/images/7840881/05.jpg" alt=""></p>
+<blockquote>
+<p>注：视频为录制了自己经过摄像头的片段</p>
+</blockquote>
+<h2 id="直方图相减法">直方图相减法</h2>
+<h3 id="黑白图像计算直方图差值">黑白图像计算直方图差值</h3>
+<p>正如上面两张图片颜色的明显变化可能是分辨关键帧的因素一样，我们能否直接从颜色通道上来找寻关键帧呢，首先我们画出三张图片的灰度分布图（为了处理方便，将图片转化为灰度图）</p>
+<p><img src="https://lynskylate.github.io/images/7840881/06.png" alt=""></p>
+<p>我们计算出各灰度分布数量并将其用直方图表示出来</p>
+<pre><code class="language-python">def cal_s(single_chaneel_image):
+    height,width = single_chaneel_image.shape
+    color = np.array([0 for i in range(256)])
+    for i in range(height):
+        for j in range(width):
+            color[single_chaneel_image[i][j]]+=1
+    return color
+</code></pre>
+<p>我们试着画出第一张图灰度分布图,绘图代码很简答</p>
+<pre><code class="language-python">plt.plot([i for i in range(256)],cal_s(gray_image))
+</code></pre>
+<p><img src="https://lynskylate.github.io/images/7840881/07.png" alt=""></p>
+<p>我们可以清除的看到第一张照片的灰度分布，将三张图的通道都画出来进行对比<br>
+<img src="https://lynskylate.github.io/images/7840881/08.png" alt=""></p>
+<p>计算直方图差之和</p>
+<pre><code class="language-python">print(&quot;1,2 image color distribution diviation&quot;,np.sum(diffimage(cal_s(gray_image1),cal_s(gray_image2))))
+print(&quot;2 3 iamge color distribution diviation&quot;,np.sum(diffimage(cal_s(gray_image1),cal_s(gray_image3))))
+#第一张图片与第二张图片直方图差值为 15406
+#第三张图片与第二张图片直方图差值为 26378
+</code></pre>
+<h3 id="三通道图像计算直方图差值">三通道图像计算直方图差值</h3>
+<p>单纯的黑白图像可能丢失很大一部分细节，比如第三张图相比第一张，第二张色调发生了明显的反转，但转化为黑边图像则不如彩图时那么明显.</p>
+<p>三通道差值计算将三通道分离然后分别计算在merge在一起，代码如下</p>
+<pre><code class="language-python">def cal_s_rgb(image):
+    image = image.astype(np.int)
+    color = cv2.split(image)
+    color = list(map(cal_s,color))
+    return np.array(color).astype(np.uint8)
+</code></pre>
+<p>我们还是使用图像将图片显示出来</p>
+<p><img src="https://lynskylate.github.io/images/7840881/09.png" alt=""><br>
+<img src="https://lynskylate.github.io/images/7840881/10.png" alt=""></p>
+<p><img src="https://lynskylate.github.io/images/7840881/11.png" alt=""><br>
+<img src="https://lynskylate.github.io/images/7840881/12.png" alt=""></p>
+<p><img src="https://lynskylate.github.io/images/7840881/13.png" alt=""><br>
+<img src="https://lynskylate.github.io/images/7840881/14.png" alt=""></p>
+<pre><code class="language-python">print(&quot;image2 image1 color distribution diviation&quot;,np.sum(diffimage(cal_s_rgb(image1),cal_s_rgb(image2))))
+print(&quot;image2 image3 color distribution diviation&quot;,np.sum(diffimage(cal_s_rgb(image3),cal_s_rgb(image2))))
+#图像1,2直方图差值和为 54100
+#图像2，3直方图差值和为 73832
+</code></pre>
+<p>通过对比三张图rgb通道的分布直方图我们发现第三张图的b通道分布的相比1,2图很均匀，这也是将rgb通道分别相减求和与1,2图片的差距主要来源，但是由于r，g通道分布的相近，我们发现彩图的三图差距并不如黑白图几乎相差一倍那么明显。</p>
+<h2 id="感知哈希法">感知哈希法</h2>
+<p>感知哈希法在计算图片相似度，音乐相似度等方面都极为常用。该算法对每张图片使用hash算法生成一个“指纹”字符串，通过比较不同图片的指纹来实现图片相似度的计算。在镜头边界检测中，一旦相似度低于一定阈值，则判断为镜头边界。选取不同hash算法对与算法的成效有较大影响。</p>
+<h3 id="感知哈希法的实现">感知哈希法的实现</h3>
+<h4 id="图片缩放与简化色彩">图片缩放与简化色彩</h4>
+<p>感知哈希法在一开始将图片进行缩放，缩放的大小由使用者指定，有如下好处</p>
+<p>1.相当于取了一定区域的特征，减少敏感性。</p>
+<p>2.减少生成指纹大小。</p>
+<p>3.减少计算量</p>
+<p>同上一步一样简化色彩也起了抽象特征，减少计算量，存储量的作用。</p>
+<pre><code class="language-python">def convertImage(image):
+    image = cv2.resize(image,(32,32),interpolation=cv2.INTER_CUBIC)
+    image = cv2.cvtColor(image,cv2.COLOR_RGB2GRAY)
+    return image
+</code></pre>
+<h4 id="计算dct">计算DCT</h4>
+<p>DCT变换是将图像的信号转换到频域的一种方法，由于实现较为复杂，此处直接调用。</p>
+<pre><code class="language-python">dct_1 = cv2.dct(cv2.dct(dct_matrix))
+</code></pre>
+<h4 id="缩小dct">缩小DCT</h4>
+<p>取得到的DCT左上角8*8的矩阵作为特征，并求得其均值，凡大于均值则为1，小于则为0</p>
+<pre><code class="language-python">dct_1 = dct_1[:8,:8]
+avg = np.mean(dct_1)
+reimg_list = ['0' if i &gt; avg else '1' for i in dct_1.flatten()]
+</code></pre>
+<h4 id="计算指纹">计算指纹</h4>
+<p>将求得的转化为16进制的数字即其指纹</p>
+<pre><code class="language-python">#fig = hex(int(&quot;&quot;.join(reimg_list),2))
+ fig = &quot;&quot;
+ for i in range(0,64,4):
+    num = hex(int(&quot;&quot;.join(img_list[i:i+4]),2))
+    fig += num[2:]
+</code></pre>
+<h5 id="计算汉明距离">计算汉明距离</h5>
+<pre><code class="language-python">def hammingDist(s1, s2):
+    assert len(s1) == len(s2)
+    return sum([ch1 != ch2 for ch1, ch2 in zip(s1, s2)])
+hammingDist(fig1,fig2)
+</code></pre>
+<h2 id="总结">总结</h2>
+<p>镜头边界检测技术本质是根据不同的指标检测两帧之间的区别，根据检测指标，区别越大则表示我们需要的信息变化越大。在实际使用中应根据不同的选择不同的边界检测技术。</p>
+<h2 id="附录">附录</h2>
+<p>使用上述三种方法分别对录制的视频进行了检测，可以参考我<a href="https://coding.net/u/Lynskylate/p/ImageProcessing/git/tree/master/sgd">使用opencv_python写的代码</a></p>
+
+    </section> 
+    
+    
+     
+  </article>
+  
+<div class="share-card">
+    <a class="twitter" href="https://twitter.com/intent/tweet?text=https%3a%2f%2flynskylate.github.io%2fpost%2f7840881%2f - python%e6%95%b0%e5%ad%97%e5%9b%be%e5%83%8f%e5%a4%84%e7%90%86%ef%bc%88%e4%ba%8c%ef%bc%89%e5%85%b3%e9%94%ae%e9%95%9c%e5%a4%b4%e6%a3%80%e6%b5%8b "><i class="fa fa-twitter"></i> Tweet</a>
+
+    <a class="facebook" href="#" onclick="
+        window.open(
+          'https://www.facebook.com/sharer/sharer.php?u='+encodeURIComponent(location.href),
+          'facebook-share-dialog',
+          'width=626,height=436');
+        return false;"><i class="fa fa-facebook"></i> Share
+    </a>
+</div>
+
+
+ 
+  
+  
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+
+(function() {
+    
+    
+    if (window.location.hostname == "localhost")
+        return;
+
+    var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+    var disqus_shortname = 'lynskylate';
+    dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+    (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+})();
+</script>
+<noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="http://disqus.com/" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+        </main>
+        
+        <aside class="desktop-only">
+            
+	<div class="widgets">
+  <section itemscope itemtype="https://schema.org/Person" class="widget socials">
+    <a href="https://lynskylate.github.io/about"><h2 class="widget-title">关于咸鱼博主</h2></a>
+    <div class="author-card" itemscope itemprop="author" itemtype="https://schema.org/Person">
+      <div class="author-dp">
+        <img itemprop='image' src="https://lynskylate.github.io/images/xiaomai.jpg" alt=".Site.Param.name" />
+      </div>
+      <div class="author-bio">
+        
+        <h4 class="author-title">
+          lynskylate <span itemprop="name"></span>
+        </h4>
+        
+        
+        <div class="author-description" itemprop="description">
+          Life is short, code lasts forever.
+        </div>
+        
+      </div>
+    </div>
+    <h2 class="widget-title">联系我</h2>
+    <ul>
+      
+      
+      
+      
+      <li><a href="https://github.com/lynskylate"><i class="fa fa-github"></i></a></li>
+      
+      
+      <li><a href="mailto://lynskylate@gmail.com"><i class="fa fa-envelope"></i></a></li>
+      
+    </ul>
+  </section>
+
+  
+
+</div>
+
+
+            <footer id="footer">
+    <p class="small">
+      Copyright © 2019, lynskylate; all rights reserved.
+    </p>
+</footer>
+        </aside>
+    </div>
+    
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+<script src="https://lynskylate.github.io/js/main.js"></script>
+<script src="https://lynskylate.github.io/js/highlight.js"></script>
+<script>hljs.initHighlightingOnLoad();</script>
+
+
+
+
+
+</body>
+</html>

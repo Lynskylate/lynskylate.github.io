@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+	<head>
+    <meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<base href="https://lynskylate.github.io/">
+<meta name="author" content="lynskylate">
+
+<meta name="generator" content="Hugo 0.161.1">
+<title>解决Minikube start卡住的方法</title>
+<link rel="shortcut icon" href="https://lynskylate.github.io/images/favicon.ico" type="">
+<link rel="stylesheet" href="https://lynskylate.github.io/css/style.css">
+<link rel="stylesheet" href="https://lynskylate.github.io/css/highlight.css">
+
+
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/latest/css/font-awesome.min.css">
+
+
+
+
+
+
+
+<meta property="og:title" content="解决Minikube start卡住的方法">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://lynskylate.github.io/">
+
+
+  <meta property="og:image" content="https://lynskylate.github.io//images/onepress-logo.jpg">
+
+
+
+
+<link rel="canonical" href="https://lynskylate.github.io/post/9440519/">
+
+
+
+    </head>
+<body>
+	  <header class="header">
+			<img src="https://lynskylate.github.io/images/xiaomai.jpg" alt="">
+
+		</header>
+    <nav class="main-nav">
+        <ul>
+    <li><a href='https://lynskylate.github.io/'>Articles</a></li>
+    <li><a href='https://lynskylate.github.io/about'>About</a></li>
+    <li><a href='https://lynskylate.github.io/tags'>Tags</a></li>
+    
+        <li><a href="https://lynskylate.github.io/index.xml" target="blank">Subscribe</a></li>
+    
+</ul>
+
+    </nav>
+    
+    
+    
+    <div id="site-wrapper">
+        <main>
+            
+  <article class="single">
+    <h1>解决Minikube start卡住的方法</h1>
+    <section class="extras">
+        <span class="tags">
+          <small class="time">August 8, 2018</small>
+          
+        </span>
+    </section>
+    <section class="description">
+      
+    </section>
+    
+    <section id="content" class="body">
+        <p>安装与问题</p>
+<p>在mac上安装minikube对k8s进行学习，根据官方Quick Start</p>
+<p>brew cask install minikube</p>
+<p>就可以完成minikube的安装</p>
+<p>在安装前需要安装virtual box 或者VM ware fusion(未测试)</p>
+<p>然后执行</p>
+<p>minikube start</p>
+<p>然而我的minikube卡在了starting cluster components处</p>
+<p>问题解决</p>
+<p>这可能是0.28.2版本的原因，将其降级即可</p>
+<p>首先停止minikube 将其删除</p>
+<p>minikube stop<br>
+minikube delete<br>
+brew cask uninstall &ndash;force minikube</p>
+<p>然后修改minikube的信息</p>
+<p>brew cask edit minikube</p>
+<p>修改为下面文件</p>
+<p>cask &lsquo;minikube&rsquo; do<br>
+version &lsquo;0.25.2&rsquo;<br>
+sha256 &lsquo;dc5b00c4a06e8160bd607732c9a2294598d803716e353293b4463cc2c9539eec&rsquo;</p>
+<h1 id="storagegoogleapiscomminikube-was-verified-as-official-when-first-introduced-to-the-cask">storage.googleapis.com/minikube was verified as official when first introduced to the cask</h1>
+<p>url &ldquo;<a href="https://storage.googleapis.com/minikube/releases/v#%7Bversion%7D/minikube-darwin-amd64">https://storage.googleapis.com/minikube/releases/v#{version}/minikube-darwin-amd64</a>&rdquo;<br>
+appcast &lsquo;<a href="https://github.com/kubernetes/minikube/releases.atom">https://github.com/kubernetes/minikube/releases.atom</a>&rsquo;,<br>
+checkpoint: &lsquo;dc5b00c4a06e8160bd607732c9a2294598d803716e353293b4463cc2c9539eec&rsquo;<br>
+name &lsquo;Minikube&rsquo;<br>
+homepage &lsquo;<a href="https://github.com/kubernetes/minikube">https://github.com/kubernetes/minikube</a>&rsquo;</p>
+<p>depends_on formula: &lsquo;kubernetes-cli&rsquo;<br>
+container type: :naked</p>
+<p>binary &lsquo;minikube-darwin-amd64&rsquo;, target: &lsquo;minikube&rsquo;</p>
+<p>zap trash: &lsquo;~/.minikube&rsquo;<br>
+end</p>
+<p>然后</p>
+<p>brew cask insatll minikube</p>
+
+    </section> 
+    
+    
+     
+  </article>
+  
+<div class="share-card">
+    <a class="twitter" href="https://twitter.com/intent/tweet?text=https%3a%2f%2flynskylate.github.io%2fpost%2f9440519%2f - %e8%a7%a3%e5%86%b3Minikube%20start%e5%8d%a1%e4%bd%8f%e7%9a%84%e6%96%b9%e6%b3%95 "><i class="fa fa-twitter"></i> Tweet</a>
+
+    <a class="facebook" href="#" onclick="
+        window.open(
+          'https://www.facebook.com/sharer/sharer.php?u='+encodeURIComponent(location.href),
+          'facebook-share-dialog',
+          'width=626,height=436');
+        return false;"><i class="fa fa-facebook"></i> Share
+    </a>
+</div>
+
+
+ 
+  
+  
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+
+(function() {
+    
+    
+    if (window.location.hostname == "localhost")
+        return;
+
+    var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+    var disqus_shortname = 'lynskylate';
+    dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+    (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+})();
+</script>
+<noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="http://disqus.com/" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+        </main>
+        
+        <aside class="desktop-only">
+            
+	<div class="widgets">
+  <section itemscope itemtype="https://schema.org/Person" class="widget socials">
+    <a href="https://lynskylate.github.io/about"><h2 class="widget-title">关于咸鱼博主</h2></a>
+    <div class="author-card" itemscope itemprop="author" itemtype="https://schema.org/Person">
+      <div class="author-dp">
+        <img itemprop='image' src="https://lynskylate.github.io/images/xiaomai.jpg" alt=".Site.Param.name" />
+      </div>
+      <div class="author-bio">
+        
+        <h4 class="author-title">
+          lynskylate <span itemprop="name"></span>
+        </h4>
+        
+        
+        <div class="author-description" itemprop="description">
+          Life is short, code lasts forever.
+        </div>
+        
+      </div>
+    </div>
+    <h2 class="widget-title">联系我</h2>
+    <ul>
+      
+      
+      
+      
+      <li><a href="https://github.com/lynskylate"><i class="fa fa-github"></i></a></li>
+      
+      
+      <li><a href="mailto://lynskylate@gmail.com"><i class="fa fa-envelope"></i></a></li>
+      
+    </ul>
+  </section>
+
+  
+
+</div>
+
+
+            <footer id="footer">
+    <p class="small">
+      Copyright © 2019, lynskylate; all rights reserved.
+    </p>
+</footer>
+        </aside>
+    </div>
+    
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+<script src="https://lynskylate.github.io/js/main.js"></script>
+<script src="https://lynskylate.github.io/js/highlight.js"></script>
+<script>hljs.initHighlightingOnLoad();</script>
+
+
+
+
+
+</body>
+</html>

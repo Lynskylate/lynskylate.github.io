@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+	<head>
+    <meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<base href="https://lynskylate.github.io/">
+<meta name="author" content="lynskylate">
+
+<meta name="generator" content="Hugo 0.161.1">
+<title>PNG文件格式</title>
+<link rel="shortcut icon" href="https://lynskylate.github.io/images/favicon.ico" type="">
+<link rel="stylesheet" href="https://lynskylate.github.io/css/style.css">
+<link rel="stylesheet" href="https://lynskylate.github.io/css/highlight.css">
+
+
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/latest/css/font-awesome.min.css">
+
+
+
+
+
+
+
+<meta property="og:title" content="PNG文件格式">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://lynskylate.github.io/">
+
+
+  <meta property="og:image" content="https://lynskylate.github.io//images/7701120/01.png">
+
+
+
+
+<link rel="canonical" href="https://lynskylate.github.io/post/7701120/">
+
+
+
+    </head>
+<body>
+	  <header class="header">
+			<img src="https://lynskylate.github.io/images/xiaomai.jpg" alt="">
+
+		</header>
+    <nav class="main-nav">
+        <ul>
+    <li><a href='https://lynskylate.github.io/'>Articles</a></li>
+    <li><a href='https://lynskylate.github.io/about'>About</a></li>
+    <li><a href='https://lynskylate.github.io/tags'>Tags</a></li>
+    
+        <li><a href="https://lynskylate.github.io/index.xml" target="blank">Subscribe</a></li>
+    
+</ul>
+
+    </nav>
+    
+    
+    
+    <div id="site-wrapper">
+        <main>
+            
+  <article class="single">
+    <h1>PNG文件格式</h1>
+    <section class="extras">
+        <span class="tags">
+          <small class="time">October 20, 2017</small>
+          
+        </span>
+    </section>
+    <section class="description">
+      
+    </section>
+    
+    <section class="featuredImage">
+        <img src="https://lynskylate.github.io/images/7701120/01.png" alt="PNG文件格式">
+    </section>
+    
+    <section id="content" class="body">
+        <h2 id="png文件的组成">PNG文件的组成</h2>
+<p>一个PNG文件可以看作是由多个数据块(chunk)部分组成，如同积木一样,一个数据块就是一个小积木，不同类型的积木组合搭建成了我们的PNG图像。</p>
+<p>PNG图像至少由文件署名域和三个关键数据块IHDR,IDAT,IEND组成，因此一个最小PNG图像可以抽象的表示成如下图像</p>
+<p><img src="https://lynskylate.github.io/images/7701120/01.png" alt=""></p>
+<p>我们结合png图像来了解png文件格式，用16进制编辑器打开该图片来分析。</p>
+<p><img src="https://lynskylate.github.io/images/7701120/02.png" alt=""></p>
+<p>上图包含的三个关键数据块的主要作用如下</p>
+<p>1.PNG文件署名域(magic number)</p>
+<p>png文件在开头用署名域标志了该文件的类型，长度为8个字节。因此一个文件只要前8个字节值为89 50 4E 47 0D 0A 1A 0A，我们就可以认为该文件为png</p>
+<p><img src="" alt="1"></p>
+<p>PS：试着在C用字符类型打印50 4E 47，你会发现打印出PNG三个字符</p>
+<p>2.<a href="http://www.w3.org/TR/PNG/%2311IHDR">IHDR</a>（Image Header） chunk：描述影像的维度、色彩深度、色彩格式、压缩类型等</p>
+<p>3.<a href="https://www.w3.org/TR/PNG/%2311IDAT">IDAT</a>（Image Data）chunk：存储影像的像素数据</p>
+<p>4.<a href="https%3A//www.w3.org/TR/PNG/%2311IEND">IEND</a>（Image End）chunk：PNG数据流结束</p>
+<p>PNG的Chunk有很多类型，这里只介绍了最关键的三种</p>
+<h2 id="数据块结构">数据块结构</h2>
+<p>PNG中一个Chunk的结构通常如下</p>
+<table>
+  <thead>
+      <tr>
+          <th>名称</th>
+          <th>大小（字节）</th>
+          <th>说明</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>Length（长度）</td>
+          <td>4</td>
+          <td>标识了数据块的长度(包括长度域)</td>
+      </tr>
+      <tr>
+          <td>Chunk Type Code(数据块类型)</td>
+          <td>4</td>
+          <td>标志了该数据块的类型</td>
+      </tr>
+      <tr>
+          <td>Chunk Data(数据库长度)</td>
+          <td>可变</td>
+          <td>根据不同的类型数据块长度不一样，取决于Chunk Type Code</td>
+      </tr>
+      <tr>
+          <td>CRC(循环冗余检验)</td>
+          <td>4</td>
+          <td>检验数据块是否出错</td>
+      </tr>
+  </tbody>
+</table>
+<h3 id="ihdr数据块">IHDR数据块</h3>
+<p><img src="https://lynskylate.github.io/images/7701120/03.png" alt=""></p>
+<p>将上图图像文件的IHDR表示如上，BD(Bit Depth),CT(Color Type),CM(Compression method),FM(fjlter method),IM(Insterlace Method)具体介绍如下</p>
+<table>
+  <thead>
+      <tr>
+          <th>域名</th>
+          <th>字节数(Byte)</th>
+          <th>说明</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>Width</td>
+          <td>4</td>
+          <td>图像宽度，以像素为单位</td>
+      </tr>
+      <tr>
+          <td>Height</td>
+          <td>4</td>
+          <td>图像高度，以像素为单位</td>
+      </tr>
+      <tr>
+          <td>Bit Depth</td>
+          <td>1</td>
+          <td>图像深度:  索引彩色图像：1，2，4或8 灰度图像：1，2，4，8或16  真彩色图像：8或16</td>
+      </tr>
+      <tr>
+          <td>Color Type</td>
+          <td>1</td>
+          <td>颜色类型： 0：灰度图像, 1，2，4，8或16  2:真彩色图像，8或16 3索引彩色图像，1，2，4或8  4：带α通道数据的灰度图像，8或16  6：带α通道数据的真彩色图像，8或16</td>
+      </tr>
+      <tr>
+          <td>Compression method</td>
+          <td>1</td>
+          <td>压缩方法(LZ77派生算法)</td>
+      </tr>
+      <tr>
+          <td>Filter Method</td>
+          <td>1</td>
+          <td>滤波器方法</td>
+      </tr>
+      <tr>
+          <td>Interlace method</td>
+          <td>1</td>
+          <td>隔行扫描方法： 0：非隔行扫描  1： Adam7(由Adam M. Costello开发的7遍隔行扫描方法)</td>
+      </tr>
+  </tbody>
+</table>
+<p>我们从上可以得到该图像的分辨率为128*128，图像深度为彩色图像，没有使用压缩、滤波器等信息。</p>
+<p>LZ77压缩算法和rar的压缩方式是一致的</p>
+<h3 id="idat数据块">IDAT数据块</h3>
+<p>IDAT数据块存储的格式取决于PNG的格式以及是否压缩。</p>
+<blockquote>
+<p>PNG文件格式分为PNG-24和PNG-8，其最大的区别是PNG-24是用24位来保存一个像素值，是真彩色，而PNG-8是用8位索引值来在调色盘 中索引一个颜色，因为一个索引值的最大上限为2的8次方既128，故调色盘中颜色数最多为128种，</p>
+</blockquote>
+<p>一旦使用了压缩我们必须使用zlib解压才能看见它的具体颜色。</p>
+<h3 id="iend数据块">IEND数据块</h3>
+<p>值得注意的是，IEND区块虽然也按照数据块的结构，但Chunk Data是没有的，所以是固定的96个字节：0x00000000 0x49454e44 0xae426082</p>
+<p>IEND数据块的长度总是0（00 00 00 00，除非人为加入信息），数据标识总是IEND（49 45 4E 44），因此，CRC码也总是AE 42 60 82</p>
+<p><img src="https://lynskylate.github.io/images/7701120/04.png" alt=""></p>
+<h1 id="参考资料">参考资料</h1>
+<p>(Yolo的svpng)[<a href="https://zhuanlan.zhihu.com/p/26525083">https://zhuanlan.zhihu.com/p/26525083</a>]<br>
+(PNG文件格式分析)[<a href="http://blog.csdn.net/hherima/article/details/45847043">http://blog.csdn.net/hherima/article/details/45847043</a>]</p>
+
+    </section> 
+    
+    
+     
+  </article>
+  
+<div class="share-card">
+    <a class="twitter" href="https://twitter.com/intent/tweet?text=https%3a%2f%2flynskylate.github.io%2fpost%2f7701120%2f - PNG%e6%96%87%e4%bb%b6%e6%a0%bc%e5%bc%8f "><i class="fa fa-twitter"></i> Tweet</a>
+
+    <a class="facebook" href="#" onclick="
+        window.open(
+          'https://www.facebook.com/sharer/sharer.php?u='+encodeURIComponent(location.href),
+          'facebook-share-dialog',
+          'width=626,height=436');
+        return false;"><i class="fa fa-facebook"></i> Share
+    </a>
+</div>
+
+
+ 
+  
+  
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+
+(function() {
+    
+    
+    if (window.location.hostname == "localhost")
+        return;
+
+    var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+    var disqus_shortname = 'lynskylate';
+    dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+    (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+})();
+</script>
+<noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="http://disqus.com/" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+        </main>
+        
+        <aside class="desktop-only">
+            
+	<div class="widgets">
+  <section itemscope itemtype="https://schema.org/Person" class="widget socials">
+    <a href="https://lynskylate.github.io/about"><h2 class="widget-title">关于咸鱼博主</h2></a>
+    <div class="author-card" itemscope itemprop="author" itemtype="https://schema.org/Person">
+      <div class="author-dp">
+        <img itemprop='image' src="https://lynskylate.github.io/images/xiaomai.jpg" alt=".Site.Param.name" />
+      </div>
+      <div class="author-bio">
+        
+        <h4 class="author-title">
+          lynskylate <span itemprop="name"></span>
+        </h4>
+        
+        
+        <div class="author-description" itemprop="description">
+          Life is short, code lasts forever.
+        </div>
+        
+      </div>
+    </div>
+    <h2 class="widget-title">联系我</h2>
+    <ul>
+      
+      
+      
+      
+      <li><a href="https://github.com/lynskylate"><i class="fa fa-github"></i></a></li>
+      
+      
+      <li><a href="mailto://lynskylate@gmail.com"><i class="fa fa-envelope"></i></a></li>
+      
+    </ul>
+  </section>
+
+  
+
+</div>
+
+
+            <footer id="footer">
+    <p class="small">
+      Copyright © 2019, lynskylate; all rights reserved.
+    </p>
+</footer>
+        </aside>
+    </div>
+    
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+<script src="https://lynskylate.github.io/js/main.js"></script>
+<script src="https://lynskylate.github.io/js/highlight.js"></script>
+<script>hljs.initHighlightingOnLoad();</script>
+
+
+
+
+
+</body>
+</html>
